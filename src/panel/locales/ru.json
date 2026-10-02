@@ -88,7 +88,7 @@
   "Flow tabs to use": "Вкладки Flow",
   "Folder": "Папка",
   "Frames": "Кадры",
-  "Free": "Free",
+  "Free": "Бесплатно",
   "Free · {n}/{max}": "Free · {n}/{max}",
   "Free: {n} of {max} left today": "Free: осталось {n} из {max} сегодня",
   "Free: {n} prompts a day with every Flow model. Pro adds unlimited runs, parallel tabs, characters, chaining, API models and more.": "Free: {n} промптов в день с любой моделью Flow. Pro — безлимит, параллельные вкладки, персонажи, цепочки, модели API и не только.",
@@ -329,7 +329,7 @@
   "{n} rows with warnings": "Строк с предупреждениями: {n}",
   "{price}/month": "{price}/мес.",
   "A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}": "Папка внутри «Загрузок»; здесь работают те же {токены}, например Reelbatch/{queue}",
-  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4": "Шаблон: слова в {фигурных скобках} подставляются для каждого файла, например {n}_{prompt30} → 007_A red fox jumping.mp4",
+  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_a_red_fox_jumping.mp4": "Шаблон: слова в {фигурных скобках} подставляются для каждого файла, например {n}_{prompt30} → 007_a_red_fox_jumping.mp4",
   "AI prompt helper": "ИИ-помощник для промптов",
   "Add a person, product or mascot once with a few photos, then write @Name in any prompt.": "Добавьте человека, товар или маскота один раз с парой фото — и пишите @Имя в любом промпте.",
   "Add prompts, then press Run to generate them one by one.": "Добавьте промпты и нажмите «Запустить» — они сгенерируются по очереди.",
@@ -542,5 +542,11 @@
   "credits set by Flow": "кредиты назначает Flow",
   "{n}+ credits": "{n}+ кредитов",
   "The trial already ran on this Google account": "Пробный период на этом Google-аккаунте уже был использован",
-  "This licence is no longer valid": "Эта лицензия больше не действительна"
+  "This licence is no longer valid": "Эта лицензия больше не действительна",
+  "Needs Reelbatch Pro: {x}. Start the free 7-day trial or switch these rows to Flow.": "Нужен Reelbatch Pro: {x}. Начните бесплатный 7-дневный период или переключите эти строки на Flow.",
+  "Unknown model \"{x}\" — the queue default is used": "Неизвестная модель «{x}» — используется модель очереди по умолчанию",
+  "Unsupported aspect \"{x}\" — the queue default is used": "Неподдерживаемый формат «{x}» — используется формат очереди по умолчанию",
+  "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
+  "Lifetime": "Навсегда",
+  "Monthly": "Ежемесячно"
 }

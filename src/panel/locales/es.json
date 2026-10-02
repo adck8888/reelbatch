@@ -329,7 +329,7 @@
   "{n} rows with warnings": "{n} filas con avisos",
   "{price}/month": "{price}/mes",
   "A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}": "Una carpeta dentro de Descargas; aquí funcionan los mismos {tokens}, p. ej. Reelbatch/{queue}",
-  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4": "Una plantilla: las palabras entre {llaves} se sustituyen en cada archivo, p. ej. {n}_{prompt30} → 007_A red fox jumping.mp4",
+  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_a_red_fox_jumping.mp4": "Una plantilla: las palabras entre {llaves} se sustituyen en cada archivo, p. ej. {n}_{prompt30} → 007_a_red_fox_jumping.mp4",
   "AI prompt helper": "Asistente de prompts con IA",
   "Add a person, product or mascot once with a few photos, then write @Name in any prompt.": "Añade una persona, un producto o una mascota una vez con unas fotos y escribe @Nombre en cualquier prompt.",
   "Add prompts, then press Run to generate them one by one.": "Añade prompts y pulsa Ejecutar para generarlos uno a uno.",
@@ -542,5 +542,11 @@
   "credits set by Flow": "créditos según Flow",
   "{n}+ credits": "{n}+ créditos",
   "The trial already ran on this Google account": "La prueba ya se usó en esta cuenta de Google",
-  "This licence is no longer valid": "Esta licencia ya no es válida"
+  "This licence is no longer valid": "Esta licencia ya no es válida",
+  "Needs Reelbatch Pro: {x}. Start the free 7-day trial or switch these rows to Flow.": "Requiere Reelbatch Pro: {x}. Inicia la prueba gratuita de 7 días o cambia estas filas a Flow.",
+  "Unknown model \"{x}\" — the queue default is used": "Modelo desconocido \"{x}\": se usa el predeterminado de la cola",
+  "Unsupported aspect \"{x}\" — the queue default is used": "Formato \"{x}\" no admitido: se usa el predeterminado de la cola",
+  "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
+  "Lifetime": "De por vida",
+  "Monthly": "Mensual"
 }

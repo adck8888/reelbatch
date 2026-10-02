@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { GenSettings, Row, RowRun, RunScope } from '../../shared/types';
 import { type Estimate } from '../../shared/messages';
 import { effectiveSettings, modelById } from '../../shared/models';
@@ -660,6 +660,18 @@ interface Block {
 }
 
 function RunBar({ selecting }: { selecting: boolean }) {
+  // toasts stack above the bar, whatever its height is right now (cards, summary)
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--runbar-h', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty('--runbar-h');
+    };
+  }, []);
   const q = queue.value!;
   const r = run.value;
   const mine = r.queueId === q.id;
@@ -732,7 +744,8 @@ function RunBar({ selecting }: { selecting: boolean }) {
   const f = flowStatus.value;
   const usesFlow = q.rows.some((row) => row.enabled && effectiveSettings(q.defaults, row.overrides).engine === 'flow');
   const blocks: Block[] = [];
-  if (runError) {
+  // the preflight "Needs Pro" card already lists the same features
+  if (runError && !(/Reelbatch Pro/.test(runError) && est?.proNeeded.length)) {
     blocks.push({
       text: runError,
       tone: 'bad',
@@ -767,7 +780,7 @@ function RunBar({ selecting }: { selecting: boolean }) {
   const showSummary = !active && mine && !!r.runId && total > 0 && closedSummary !== r.runId;
 
   return (
-    <div class="runbar">
+    <div class="runbar" ref={barRef}>
       {active && mine ? (
         <>
           <div class="progress" aria-label={t('Progress')}>

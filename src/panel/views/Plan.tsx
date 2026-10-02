@@ -22,7 +22,7 @@ export function PlanSheet({ onClose }: { onClose: () => void }) {
     <Modal title={t('Plan')} onClose={onClose} sheet>
       {p === 'pro' && (
         <div class="plan pro">
-          <Icon name="check" /> <b>Reelbatch Pro</b> {l.plan && <span class="muted">· {l.plan}</span>}
+          <Icon name="check" /> <b>Reelbatch Pro</b> {l.plan && <span class="muted">· {t(l.plan)}</span>}
           <div class="row-wrap">
             <span class="muted">{t('Key')} …{l.key?.slice(-6)}</span>
             <span class="grow" />
@@ -56,7 +56,7 @@ export function PlanSheet({ onClose }: { onClose: () => void }) {
             )}
             <div class="buy-prices">
               <Button variant={l.trialStartedAt ? 'primary' : 'default'} onClick={() => chrome.tabs.create({ url: PRO.lifetimeUrl })}>
-                {t('{price} — lifetime', { price: PRO.lifetimePrice })}
+                {t('{price} — lifetime', { price: PRO.lifetimePrice.replace(/\s*once$/i, '') })}
               </Button>
               <Button onClick={() => chrome.tabs.create({ url: PRO.monthlyUrl })}>{t('{price}/month', { price: PRO.monthlyPrice.replace(/\s*\/\s*month$/i, '') })}</Button>
             </div>

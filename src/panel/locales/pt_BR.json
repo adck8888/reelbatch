@@ -329,7 +329,7 @@
   "{n} rows with warnings": "{n} linhas com avisos",
   "{price}/month": "{price}/mês",
   "A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}": "Uma pasta dentro de Downloads; os mesmos {tokens} funcionam aqui, ex.: Reelbatch/{queue}",
-  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4": "Um modelo: palavras entre {chaves} são substituídas em cada arquivo, ex.: {n}_{prompt30} → 007_A red fox jumping.mp4",
+  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_a_red_fox_jumping.mp4": "Um modelo: palavras entre {chaves} são substituídas em cada arquivo, ex.: {n}_{prompt30} → 007_a_red_fox_jumping.mp4",
   "AI prompt helper": "Assistente de prompts com IA",
   "Add a person, product or mascot once with a few photos, then write @Name in any prompt.": "Adicione uma pessoa, produto ou mascote uma vez com algumas fotos e escreva @Nome em qualquer prompt.",
   "Add prompts, then press Run to generate them one by one.": "Adicione prompts e clique em Executar para gerá-los um a um.",
@@ -542,5 +542,11 @@
   "credits set by Flow": "créditos definidos pelo Flow",
   "{n}+ credits": "{n}+ créditos",
   "The trial already ran on this Google account": "O teste já foi usado nesta conta do Google",
-  "This licence is no longer valid": "Esta licença não é mais válida"
+  "This licence is no longer valid": "Esta licença não é mais válida",
+  "Needs Reelbatch Pro: {x}. Start the free 7-day trial or switch these rows to Flow.": "Requer Reelbatch Pro: {x}. Inicie o teste grátis de 7 dias ou mude estas linhas para o Flow.",
+  "Unknown model \"{x}\" — the queue default is used": "Modelo desconhecido \"{x}\" — o padrão da fila é usado",
+  "Unsupported aspect \"{x}\" — the queue default is used": "Proporção \"{x}\" não suportada — o padrão da fila é usado",
+  "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
+  "Lifetime": "Vitalícia",
+  "Monthly": "Mensal"
 }

@@ -17,9 +17,12 @@ const PATTERNS: [RegExp, string][] = [
   [/^API budget reached: \$(.*) of \$(.*) used, next prompt costs about \$(.*)$/, 'API budget reached: ${x} of ${y} used, next prompt costs about ${z}'],
   [/^Free plan limit reached \((\d+) prompts today\)\. Upgrade to Pro to keep going\.$/, 'Free plan limit reached ({x} prompts today). Upgrade to Pro to keep going.'],
   [/^The free plan runs (\d+) prompts a day\. Upgrade to Pro for unlimited runs\.$/, 'The free plan runs {x} prompts a day. Upgrade to Pro for unlimited runs.'],
+  [/^Needs Reelbatch Pro: (.*)\. Start the free 7-day trial or switch these rows to Flow\.$/s, 'Needs Reelbatch Pro: {x}. Start the free 7-day trial or switch these rows to Flow.'],
   [/^Needs Reelbatch Pro: (.*)$/s, 'Needs Reelbatch Pro: {x}'],
   [/^(.*) is a Reelbatch Pro feature\. Start the free 7-day trial or upgrade in Settings\.$/, '{x} is a Reelbatch Pro feature. Start the free 7-day trial or upgrade in Settings.'],
   [/^(.*) cannot use reference images in Flow: remove them or pick a model with Ingredients$/, '{x} cannot use reference images in Flow: remove them or pick a model with Ingredients'],
+  [/^Unknown model "(.*)" — the queue default is used$/, 'Unknown model "{x}" — the queue default is used'],
+  [/^Unsupported aspect "(.*)" — the queue default is used$/, 'Unsupported aspect "{x}" — the queue default is used'],
   [/^Flow returned (\d+) of (\d+)$/, 'Flow returned {x} of {y}'],
   [/^Flow rejected the request \(code (.*)\)$/, 'Flow rejected the request (code {x})'],
   [/^Flow returned HTTP (\d+)$/, 'Flow returned HTTP {x}'],
@@ -38,7 +41,8 @@ export function te(msg: string | undefined | null): string {
   for (const [re, key] of PATTERNS) {
     const m = msg.match(re);
     if (m) {
-      const [x = '', y = '', z = ''] = m.slice(1).map(te);
+      // a captured group may be a list ("Chaining, Characters"): translate each item
+      const [x = '', y = '', z = ''] = m.slice(1).map((g) => (g && g.includes(', ') ? g.split(', ').map(te).join(', ') : te(g)));
       return t(key, { x, y, z });
     }
   }

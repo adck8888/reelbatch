@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ComponentChildren } from 'preact';
 import { signal } from '@preact/signals';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { getAsset, putAsset } from '../shared/idb';
 import { send, type PanelRequest } from '../shared/messages';
 import { errText } from '../shared/util';
@@ -196,12 +196,20 @@ export function Toggle({ checked, onChange, label, disabled }: { checked: boolea
   );
 }
 
+const modalStack: object[] = [];
+
 /** A dialog; `sheet` slides it up from the bottom (plan, characters, row editor) instead of centring it. */
 export function Modal({ title, onClose, children, footer, wide, sheet, head }: { title: string; onClose: () => void; children: ComponentChildren; footer?: ComponentChildren; wide?: boolean; sheet?: boolean; head?: ComponentChildren }) {
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    // only the topmost dialog answers Escape, so a nested editor does not take its parent sheet with it
+    const me = {};
+    modalStack.push(me);
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && modalStack[modalStack.length - 1] === me && onClose();
     window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
+    return () => {
+      window.removeEventListener('keydown', k);
+      modalStack.splice(modalStack.indexOf(me), 1);
+    };
   }, [onClose]);
   return (
     <div class={`modal-back ${sheet ? 'sheet' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -253,6 +261,24 @@ export interface MenuItem {
 export function Menu({ items, label, icon = 'more', small = true, align = 'right', title, class: cls, variant = 'ghost' }: { items: MenuItem[]; label?: string; icon?: string; small?: boolean; align?: 'left' | 'right'; title?: string; class?: string; variant?: 'ghost' | 'default' }) {
   const ref = useRef<HTMLDetailsElement>(null);
   const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    // flip the popover when it would leave the panel (menus near an edge, the run bar at the bottom)
+    const pop = ref.current?.querySelector<HTMLElement>('.menu-pop');
+    if (!open || !pop) return;
+    pop.classList.remove('flip', 'up');
+    pop.style.transform = '';
+    let r = pop.getBoundingClientRect();
+    if (r.left < 8 || r.right > innerWidth - 8) {
+      pop.classList.add('flip');
+      r = pop.getBoundingClientRect();
+      if (r.left < 8 || r.right > innerWidth - 8) pop.classList.remove('flip');
+    }
+    // whichever side it hangs from, keep it inside the panel
+    r = pop.getBoundingClientRect();
+    if (r.left < 8) pop.style.transform = `translateX(${8 - r.left}px)`;
+    else if (r.right > innerWidth - 8) pop.style.transform = `translateX(${innerWidth - 8 - r.right}px)`;
+    if (r.bottom > innerHeight - 8 && r.height < r.top) pop.classList.add('up');
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const close = () => ref.current && (ref.current.open = false);

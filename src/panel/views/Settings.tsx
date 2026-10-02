@@ -68,7 +68,7 @@ function BasicsCard() {
             <Field label={t('Folder')} tip={t('A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}')}>
               <input type="text" value={d.folder} onChange={(e) => setDl((x) => void (x.folder = (e.target as HTMLInputElement).value || 'Reelbatch'))} />
             </Field>
-            <Field label={t('File name')} tip={t('A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4')}>
+            <Field label={t('File name')} tip={t('A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_a_red_fox_jumping.mp4')}>
               <input type="text" value={d.filename} onChange={(e) => setDl((x) => void (x.filename = (e.target as HTMLInputElement).value || '{n}'))} />
             </Field>
           </div>

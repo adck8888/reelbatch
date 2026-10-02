@@ -183,7 +183,7 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
           }}
         >
           <p>{t('Drop a file here or choose one')}</p>
-          <p class="muted">TXT, CSV, DOCX · XLSX, JSON (Pro)</p>
+          <p class="muted">{t('TXT, CSV, DOCX · XLSX, JSON (Pro)')}</p>
           <input type="file" accept=".txt,.md,.csv,.tsv,.xlsx,.xls,.ods,.json,.docx" disabled={busy} onChange={(e) => {
             const f = (e.target as HTMLInputElement).files?.[0];
             if (f) void onFile(f);

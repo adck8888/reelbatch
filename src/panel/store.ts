@@ -102,7 +102,7 @@ export async function init() {
   ]);
   settings.value = s;
   queueIndex.value = idx;
-  run.value = r;
+  run.value = r ?? IDLE_RUN;
   license.value = l;
   usage.value = u;
   characters.value = c;
@@ -111,7 +111,7 @@ export async function init() {
   bindQueue(q);
   watch('settings', (v) => (settings.value = v));
   watch('queueIndex', (v) => (queueIndex.value = v));
-  watch('run', (v) => (run.value = v));
+  watch('run', (v) => (run.value = v ?? IDLE_RUN));
   watch('license', (v) => (license.value = v));
   watch('usage', (v) => (usage.value = v));
   watch('characters', (v) => (characters.value = v));

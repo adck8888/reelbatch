@@ -329,7 +329,7 @@
   "{n} rows with warnings": "{n} पंक्तियों में चेतावनियाँ",
   "{price}/month": "{price}/माह",
   "A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}": "Downloads के अंदर एक फ़ोल्डर; यहाँ भी वही {tokens} काम करते हैं, जैसे Reelbatch/{queue}",
-  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4": "एक टेम्पलेट: {braces} में लिखे शब्द हर फ़ाइल के लिए बदल दिए जाते हैं, जैसे {n}_{prompt30} → 007_A red fox jumping.mp4",
+  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_a_red_fox_jumping.mp4": "एक टेम्पलेट: {braces} में लिखे शब्द हर फ़ाइल के लिए बदल दिए जाते हैं, जैसे {n}_{prompt30} → 007_a_red_fox_jumping.mp4",
   "AI prompt helper": "AI प्रॉम्प्ट हेल्पर",
   "Add a person, product or mascot once with a few photos, then write @Name in any prompt.": "किसी व्यक्ति, प्रोडक्ट या मैस्कॉट को कुछ फ़ोटो के साथ एक बार जोड़ें, फिर किसी भी प्रॉम्प्ट में @Name लिखें।",
   "Add prompts, then press Run to generate them one by one.": "प्रॉम्प्ट जोड़ें, फिर उन्हें एक-एक करके बनाने के लिए चलाएँ दबाएँ।",
@@ -542,5 +542,11 @@
   "credits set by Flow": "क्रेडिट Flow तय करता है",
   "{n}+ credits": "{n}+ क्रेडिट",
   "The trial already ran on this Google account": "इस Google खाते पर ट्रायल पहले ही चल चुका है",
-  "This licence is no longer valid": "यह लाइसेंस अब मान्य नहीं है"
+  "This licence is no longer valid": "यह लाइसेंस अब मान्य नहीं है",
+  "Needs Reelbatch Pro: {x}. Start the free 7-day trial or switch these rows to Flow.": "Reelbatch Pro चाहिए: {x}. 7-दिन का मुफ़्त ट्रायल शुरू करें या इन पंक्तियों को Flow पर बदलें।",
+  "Unknown model \"{x}\" — the queue default is used": "अज्ञात मॉडल \"{x}\" — कतार का डिफ़ॉल्ट इस्तेमाल होगा",
+  "Unsupported aspect \"{x}\" — the queue default is used": "असमर्थित अनुपात \"{x}\" — कतार का डिफ़ॉल्ट इस्तेमाल होगा",
+  "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
+  "Lifetime": "आजीवन",
+  "Monthly": "मासिक"
 }

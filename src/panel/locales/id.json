@@ -329,7 +329,7 @@
   "{n} rows with warnings": "{n} baris dengan peringatan",
   "{price}/month": "{price}/bulan",
   "A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}": "Folder di dalam Downloads; {tokens} yang sama berlaku di sini, mis. Reelbatch/{queue}",
-  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4": "Template: kata dalam {kurung} diganti untuk tiap file, mis. {n}_{prompt30} → 007_A red fox jumping.mp4",
+  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_a_red_fox_jumping.mp4": "Template: kata dalam {kurung} diganti untuk tiap file, mis. {n}_{prompt30} → 007_a_red_fox_jumping.mp4",
   "AI prompt helper": "Asisten prompt AI",
   "Add a person, product or mascot once with a few photos, then write @Name in any prompt.": "Tambahkan orang, produk, atau maskot sekali dengan beberapa foto, lalu tulis @Nama di prompt mana pun.",
   "Add prompts, then press Run to generate them one by one.": "Tambahkan prompt, lalu tekan Jalankan untuk membuatnya satu per satu.",
@@ -542,5 +542,11 @@
   "credits set by Flow": "kredit ditentukan Flow",
   "{n}+ credits": "{n}+ kredit",
   "The trial already ran on this Google account": "Uji coba sudah digunakan di akun Google ini",
-  "This licence is no longer valid": "Lisensi ini tidak lagi valid"
+  "This licence is no longer valid": "Lisensi ini tidak lagi valid",
+  "Needs Reelbatch Pro: {x}. Start the free 7-day trial or switch these rows to Flow.": "Perlu Reelbatch Pro: {x}. Mulai uji coba gratis 7 hari atau ubah baris ini ke Flow.",
+  "Unknown model \"{x}\" — the queue default is used": "Model \"{x}\" tidak dikenal — default antrean dipakai",
+  "Unsupported aspect \"{x}\" — the queue default is used": "Rasio \"{x}\" tidak didukung — default antrean dipakai",
+  "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
+  "Lifetime": "Seumur hidup",
+  "Monthly": "Bulanan"
 }

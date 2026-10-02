@@ -329,7 +329,7 @@
   "{n} rows with warnings": "Uyarı içeren {n} satır",
   "{price}/month": "{price}/ay",
   "A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}": "İndirilenler içinde bir klasör; aynı {tokens} burada da çalışır, ör. Reelbatch/{queue}",
-  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4": "Şablon: {süslü parantez} içindeki sözcükler her dosya için değiştirilir, ör. {n}_{prompt30} → 007_A red fox jumping.mp4",
+  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_a_red_fox_jumping.mp4": "Şablon: {süslü parantez} içindeki sözcükler her dosya için değiştirilir, ör. {n}_{prompt30} → 007_a_red_fox_jumping.mp4",
   "AI prompt helper": "Yapay zekâ istem yardımcısı",
   "Add a person, product or mascot once with a few photos, then write @Name in any prompt.": "Bir kişiyi, ürünü ya da maskotu birkaç fotoğrafla bir kez ekleyin, sonra herhangi bir isteme @Ad yazın.",
   "Add prompts, then press Run to generate them one by one.": "İstem ekleyin, ardından tek tek üretmek için Çalıştır’a basın.",
@@ -542,5 +542,11 @@
   "credits set by Flow": "kredileri Flow belirler",
   "{n}+ credits": "{n}+ kredi",
   "The trial already ran on this Google account": "Deneme bu Google hesabında zaten kullanıldı",
-  "This licence is no longer valid": "Bu lisans artık geçerli değil"
+  "This licence is no longer valid": "Bu lisans artık geçerli değil",
+  "Needs Reelbatch Pro: {x}. Start the free 7-day trial or switch these rows to Flow.": "Reelbatch Pro gerekir: {x}. 7 günlük ücretsiz denemeyi başlatın veya bu satırları Flow'a geçirin.",
+  "Unknown model \"{x}\" — the queue default is used": "Bilinmeyen model \"{x}\" — kuyruk varsayılanı kullanılır",
+  "Unsupported aspect \"{x}\" — the queue default is used": "Desteklenmeyen oran \"{x}\" — kuyruk varsayılanı kullanılır",
+  "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
+  "Lifetime": "Ömür boyu",
+  "Monthly": "Aylık"
 }

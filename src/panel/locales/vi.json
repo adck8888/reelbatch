@@ -329,7 +329,7 @@
   "{n} rows with warnings": "{n} hàng có cảnh báo",
   "{price}/month": "{price}/tháng",
   "A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}": "Một thư mục trong Downloads; các {tokens} giống vậy cũng dùng được ở đây, ví dụ Reelbatch/{queue}",
-  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4": "Một mẫu: các từ trong {ngoặc nhọn} được thay cho từng tệp, ví dụ {n}_{prompt30} → 007_A red fox jumping.mp4",
+  "A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_a_red_fox_jumping.mp4": "Một mẫu: các từ trong {ngoặc nhọn} được thay cho từng tệp, ví dụ {n}_{prompt30} → 007_a_red_fox_jumping.mp4",
   "AI prompt helper": "Trợ lý viết prompt bằng AI",
   "Add a person, product or mascot once with a few photos, then write @Name in any prompt.": "Thêm một người, sản phẩm hoặc linh vật một lần với vài ảnh, rồi viết @Tên trong bất kỳ prompt nào.",
   "Add prompts, then press Run to generate them one by one.": "Thêm prompt, rồi nhấn Chạy để tạo lần lượt từng cái.",
@@ -542,5 +542,11 @@
   "credits set by Flow": "credit do Flow quyết định",
   "{n}+ credits": "{n}+ credit",
   "The trial already ran on this Google account": "Bản dùng thử đã được dùng trên tài khoản Google này",
-  "This licence is no longer valid": "Giấy phép này không còn hiệu lực"
+  "This licence is no longer valid": "Giấy phép này không còn hiệu lực",
+  "Needs Reelbatch Pro: {x}. Start the free 7-day trial or switch these rows to Flow.": "Cần Reelbatch Pro: {x}. Bắt đầu dùng thử 7 ngày miễn phí hoặc chuyển các dòng này sang Flow.",
+  "Unknown model \"{x}\" — the queue default is used": "Không rõ model \"{x}\" — dùng mặc định của hàng đợi",
+  "Unsupported aspect \"{x}\" — the queue default is used": "Tỷ lệ \"{x}\" không hỗ trợ — dùng mặc định của hàng đợi",
+  "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
+  "Lifetime": "Trọn đời",
+  "Monthly": "Hằng tháng"
 }
