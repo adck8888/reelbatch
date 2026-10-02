@@ -54,6 +54,12 @@ const MAX_LATE = 2 * 60 * 60_000;
 async function fireSchedule() {
   const s = await get('schedule');
   if (!s?.enabled) return;
+  if ((await get('run')).status !== 'idle') {
+    // another run is busy: keep the schedule and look again in a few minutes
+    chrome.alarms.create(ALARM_SCHEDULE, { delayInMinutes: 5 });
+    await log('info', 'Scheduled run is waiting for the current run to finish');
+    return;
+  }
   await set('schedule', { ...s, enabled: false });
   try {
     if (Date.now() - s.at > MAX_LATE) throw new Error('Chrome was closed at the scheduled time, so the run was skipped. Schedule it again.');
@@ -125,12 +131,13 @@ async function handle(m: PanelRequest | { type: 'flow:config' }): Promise<unknow
     case 'license:deactivate':
       await license.deactivate();
       return { ok: true };
-    case 'license:refresh':
-      await license.refresh(true);
-      return { ok: true };
+    case 'license:refresh': {
+      const r = await license.refresh(true);
+      if (r === 'offline') throw new Error('Could not reach the licence server. Pro stays active offline for a while; try again later.');
+      return { result: r };
+    }
     case 'license:trial':
-      await license.startTrial();
-      return { ok: true };
+      return { plan: await license.startTrial() };
 
     case 'api:test':
       if (m.provider === 'gemini') return testGeminiKey(m.key.trim());

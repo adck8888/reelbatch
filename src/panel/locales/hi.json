@@ -538,5 +538,9 @@
   "ZIP export is a Pro feature": "ZIP निर्यात Pro सुविधा है",
   "run.csv saved to Downloads": "run.csv Downloads में सहेजा गया",
   "Reelbatch could not start: {x}": "Reelbatch शुरू नहीं हो सका: {x}",
-  "Reload": "रीलोड करें"
+  "Reload": "रीलोड करें",
+  "credits set by Flow": "क्रेडिट Flow तय करता है",
+  "{n}+ credits": "{n}+ क्रेडिट",
+  "The trial already ran on this Google account": "इस Google खाते पर ट्रायल पहले ही चल चुका है",
+  "This licence is no longer valid": "यह लाइसेंस अब मान्य नहीं है"
 }

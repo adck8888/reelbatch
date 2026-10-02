@@ -19,6 +19,7 @@ Reelbatch is a Chrome extension that runs batches of image and video prompts in 
 | Gemini / Replicate API keys (optional) | Calling those APIs on your behalf | `chrome.storage.local` in your browser |
 | Licence key and its status | Unlocking Pro | `chrome.storage.local` in your browser |
 | Settings and daily usage counter | Preferences and the free daily limit | `chrome.storage.local` in your browser |
+| Trial start date | Keeps the 7-day trial from restarting after a reinstall | `chrome.storage.sync`, synced to your Chrome profile by Google |
 
 You can delete all of it at any time. Use **Settings → Diagnostics**, clear History, or remove the extension.
 
@@ -37,6 +38,7 @@ You can delete all of it at any time. Use **Settings → Diagnostics**, clear Hi
 - **downloads:** saves generated files into the folders and with the names you choose.
 - **scripting and content scripts on flow.google.com:** read and fill in the Flow editor.
 - **storage, unlimitedStorage:** keep your queues, history and reference images locally.
+- **power:** keeps the computer awake while a batch runs, released when the run ends.
 - **sidePanel, alarms, notifications, offscreen:** the side panel UI, scheduled runs and licence checks, finish notifications, and in-browser ZIP and thumbnail creation.
 
 ## Analytics

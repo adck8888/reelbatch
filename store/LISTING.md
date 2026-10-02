@@ -91,7 +91,7 @@ Batch-generate images and videos from a list of prompts: in Google Flow through 
 
 **Remote code:** No. All code is in the package; the remote file is JSON data (CSS selectors and text labels).
 
-**Data usage disclosures:** collects none. Tick "I do not sell or transfer user data…" and all three certifications.
+**Data usage disclosures:** tick **Authentication information** (the Pro licence key goes to Lemon Squeezy; optional Gemini/Replicate API keys go to those providers) and **Website content** (your prompts and reference images go to Google Flow, or to Gemini/Replicate in API mode). Everything else: not collected. Then tick all three certifications: data is used only for the extension's single purpose, not sold, not used for creditworthiness or lending.
 
 ## Assets to prepare
 - Icon 128×128: public/icons/128.png

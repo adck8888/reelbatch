@@ -134,8 +134,17 @@ export function editQueue(fn: (q: Queue) => void) {
   next.updatedAt = Date.now();
   queue.value = next;
   clearTimeout(qTimer);
-  qTimer = setTimeout(() => void saveQueue(next), 250);
+  qTimer = setTimeout(() => void flushQueue(), 250);
 }
+
+/** Write the pending queue edit now (before a run starts, or when the panel is closing). */
+export async function flushQueue() {
+  clearTimeout(qTimer);
+  qTimer = undefined;
+  const cur = queue.value;
+  if (cur) await saveQueue(cur);
+}
+addEventListener('pagehide', () => void flushQueue());
 
 export async function switchQueue(id: string) {
   const q = await getQueue(id);

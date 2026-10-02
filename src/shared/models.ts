@@ -21,6 +21,8 @@ export interface ModelInfo {
   cost: (s: GenSettings) => number;
   pro?: boolean;
   note?: string;
+  /** Flow decides the price at run time (plan-dependent); cost() is a floor, not the bill. */
+  liveCost?: boolean;
 }
 
 const IMG_ASPECTS = ['16:9', '4:3', '1:1', '3:4', '9:16'];
@@ -43,7 +45,7 @@ export const MODELS: ModelInfo[] = [
   // ---- Google Flow (credits; measured on a Plus plan 2026-10-02) ----
   flow({ id: 'flow:nb2', kind: 'image', label: 'Nano Banana 2', target: 'Nano Banana 2', aspects: IMG_ASPECTS, maxRefs: 10, cost: () => 0 }),
   flow({ id: 'flow:nb2-lite', kind: 'image', label: 'Nano Banana 2 Lite', target: 'Nano Banana 2 Lite', aspects: IMG_ASPECTS, maxRefs: 10, cost: () => 0 }),
-  flow({ id: 'flow:nb-pro', kind: 'image', label: 'Nano Banana Pro', target: 'Nano Banana Pro', aspects: IMG_ASPECTS, maxRefs: 10, cost: () => 0, note: 'cost read live from Flow' }),
+  flow({ id: 'flow:nb-pro', kind: 'image', label: 'Nano Banana Pro', target: 'Nano Banana Pro', aspects: IMG_ASPECTS, maxRefs: 10, cost: () => 0, liveCost: true, note: 'cost read live from Flow' }),
   flow({
     id: 'flow:omni-flash', kind: 'video', label: 'Omni 1.1 Flash', target: 'Omni 1.1 Flash', aspects: VID_ASPECTS,
     durations: [4, 6, 8, 10], resolutions: ['720p'], videoModes: ['text', 'frames', 'ingredients'], maxRefs: 3,
@@ -188,6 +190,8 @@ export function effectiveSettings(defaults: GenSettings, overrides: Partial<GenS
   m.coerce?.(s);
   return s;
 }
+
+export const hasLiveCost = (s: GenSettings) => !!modelById(s.model)?.liveCost;
 
 export function estimateCost(s: GenSettings): number {
   const m = modelById(s.model);

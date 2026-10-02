@@ -27,6 +27,8 @@ export interface Estimate {
   rows: number;
   outputs: number;
   credits: number;
+  /** Some rows use a model whose price Flow sets at run time; `credits` is then a floor. */
+  liveCost: boolean;
   usd: number;
   freeLeft: number | null;
   proNeeded: string[];

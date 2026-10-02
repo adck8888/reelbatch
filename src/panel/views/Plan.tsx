@@ -3,7 +3,7 @@ import { PRO } from '../../shared/license';
 import { te } from '../errors';
 import { t } from '../i18n';
 import { license, plan, trialLeft, usedToday } from '../store';
-import { Button, Field, Icon, Modal, call } from '../ui';
+import { Button, Field, Icon, Modal, call, toast } from '../ui';
 
 /** Free vs Pro, the trial and purchase buttons, and licence-key activation. Opened from the plan pill and any PRO badge. */
 export function PlanSheet({ onClose }: { onClose: () => void }) {
@@ -26,7 +26,7 @@ export function PlanSheet({ onClose }: { onClose: () => void }) {
           <div class="row-wrap">
             <span class="muted">{t('Key')} …{l.key?.slice(-6)}</span>
             <span class="grow" />
-            <Button small variant="ghost" onClick={() => call({ type: 'license:refresh' }, t('Licence checked'))}>
+            <Button small variant="ghost" onClick={async () => { const r = await call<{ result: string }>({ type: 'license:refresh' }); if (r) toast(r.result === 'invalid' ? t('This licence is no longer valid') : t('Licence checked'), r.result === 'invalid' ? 'error' : 'ok'); }}>
               {t('Check now')}
             </Button>
             <Button small variant="ghost" onClick={() => confirm(t('Remove the licence from this browser? You can activate it again later.')) && call({ type: 'license:deactivate' })}>
@@ -50,7 +50,7 @@ export function PlanSheet({ onClose }: { onClose: () => void }) {
           <PlanCompare />
           <div class="buy">
             {!l.trialStartedAt && (
-              <Button variant="primary" class="big trial-btn" onClick={() => call({ type: 'license:trial' }, t('Trial started: 7 days of Pro'))}>
+              <Button variant="primary" class="big trial-btn" onClick={async () => { const r = await call<{ plan: string }>({ type: 'license:trial' }); if (r) toast(r.plan === 'trial' ? t('Trial started: 7 days of Pro') : t('The trial already ran on this Google account'), r.plan === 'trial' ? 'ok' : 'error'); }}>
                 {t('Start 7-day trial')}
               </Button>
             )}

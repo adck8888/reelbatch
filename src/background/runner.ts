@@ -1,6 +1,6 @@
 import type { AppSettings, Character, GenSettings, MediaKind, Queue, ResultMedia, Row, RowRun, RunScope, RunState } from '../shared/types';
 import type { Estimate } from '../shared/messages';
-import { effectiveSettings, estimateCost, modelById, modelsFor } from '../shared/models';
+import { effectiveSettings, estimateCost, hasLiveCost, modelById, modelsFor } from '../shared/models';
 import { resolveMentions } from '../shared/characters';
 import { PRO, isPro } from '../shared/license';
 import { IDLE_RUN, get, getQueue, log, set, update } from '../shared/storage';
@@ -143,6 +143,7 @@ export async function estimate(queueId: string, scope: RunScope): Promise<Estima
   let outputs = 0;
   let credits = 0;
   let usd = 0;
+  let liveCost = false;
   for (const r of rows) {
     const g = effectiveSettings(q.defaults, r.overrides);
     const steps = [g];
@@ -150,6 +151,7 @@ export async function estimate(queueId: string, scope: RunScope): Promise<Estima
     for (const st of steps) {
       outputs += st.count;
       const c = estimateCost(st);
+      if (hasLiveCost(st)) liveCost = true;
       if (st.engine === 'flow') credits += c;
       else usd += c;
     }
@@ -158,6 +160,7 @@ export async function estimate(queueId: string, scope: RunScope): Promise<Estima
     rows: rows.length,
     outputs,
     credits: Math.round(credits),
+    liveCost,
     usd: Math.round(usd * 100) / 100,
     freeLeft: pro ? null : await freeLeft(),
     proNeeded: pro ? [] : proReasons(q, rows, settings, await get('characters'))

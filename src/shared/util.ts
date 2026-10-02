@@ -3,11 +3,15 @@ export const uid = () => crypto.randomUUID();
 export const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener('abort', () => {
+    const onAbort = () => {
       clearTimeout(t);
       reject(new DOMException('Aborted', 'AbortError'));
-    }, { once: true });
+    };
+    const t = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
   });
 
 export const rand = (min: number, max: number) => min + Math.random() * Math.max(0, max - min);

@@ -538,5 +538,9 @@
   "ZIP export is a Pro feature": "Xuất ZIP là tính năng Pro",
   "run.csv saved to Downloads": "Đã lưu run.csv vào Downloads",
   "Reelbatch could not start: {x}": "Reelbatch không thể khởi động: {x}",
-  "Reload": "Tải lại"
+  "Reload": "Tải lại",
+  "credits set by Flow": "credit do Flow quyết định",
+  "{n}+ credits": "{n}+ credit",
+  "The trial already ran on this Google account": "Bản dùng thử đã được dùng trên tài khoản Google này",
+  "This licence is no longer valid": "Giấy phép này không còn hiệu lực"
 }

@@ -1,4 +1,5 @@
-import { PRO, REVALIDATE_MS } from '../shared/license';
+import { errText } from '../shared/util';
+import { PRO, REVALIDATE_MS, licenseStatus } from '../shared/license';
 import { get, log, set, update } from '../shared/storage';
 
 const API = 'https://api.lemonsqueezy.com/v1/licenses';
@@ -64,20 +65,26 @@ export async function activate(rawKey: string) {
 
 export async function deactivate() {
   const l = await get('license');
-  if (l.key && l.instanceId) await call('deactivate', { license_key: l.key, instance_id: l.instanceId }).catch(() => {});
+  if (l.key && l.instanceId) {
+    try {
+      await call('deactivate', { license_key: l.key, instance_id: l.instanceId });
+    } catch (e) {
+      throw new Error(`Could not release the licence (${errText(e)}). Check your connection and try again, or the activation stays used.`);
+    }
+  }
   await set('license', { trialStartedAt: l.trialStartedAt });
 }
 
 /** Revalidate every few days; offline keeps Pro for the grace period. */
-export async function refresh(force = false) {
+export async function refresh(force = false): Promise<'ok' | 'invalid' | 'offline' | 'none'> {
   const l = await get('license');
-  if (!l.key || !l.instanceId) return;
-  if (!force && l.validatedAt && Date.now() - l.validatedAt < REVALIDATE_MS) return;
+  if (!l.key || !l.instanceId) return 'none';
+  if (!force && l.validatedAt && Date.now() - l.validatedAt < REVALIDATE_MS) return 'ok';
   let r: LicenseResponse;
   try {
     r = await call('validate', { license_key: l.key, instance_id: l.instanceId });
   } catch {
-    return;
+    return 'offline';
   }
   const ok = !!r.valid && ours(r);
   const now = Date.now();
@@ -89,9 +96,11 @@ export async function refresh(force = false) {
     error: ok ? undefined : r.error ?? `licence ${r.license_key?.status ?? 'invalid'}`
   }));
   if (!ok) await log('warn', `Licence check failed: ${r.error ?? r.license_key?.status}`);
+  return ok ? 'ok' : 'invalid';
 }
 
-export async function startTrial() {
+/** Returns the plan after the call: 'trial', or 'free' when the trial on this Google account already ran out. */
+export async function startTrial(): Promise<'trial' | 'free'> {
   // the earliest start wins, and it is mirrored in sync storage so a reinstall does not restart the trial
   const synced = await chrome.storage.sync.get('trialStartedAt').then((v) => v.trialStartedAt as number | undefined).catch(() => undefined);
   const l = await update('license', (l) => {
@@ -99,4 +108,5 @@ export async function startTrial() {
     return { ...l, trialStartedAt: Number.isFinite(at) ? at : Date.now() };
   });
   await chrome.storage.sync.set({ trialStartedAt: l.trialStartedAt }).catch(() => {});
+  return licenseStatus(l) === 'trial' ? 'trial' : 'free';
 }

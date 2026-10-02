@@ -538,5 +538,9 @@
   "ZIP export is a Pro feature": "A exportação em ZIP é um recurso Pro",
   "run.csv saved to Downloads": "run.csv salvo em Downloads",
   "Reelbatch could not start: {x}": "O Reelbatch não conseguiu iniciar: {x}",
-  "Reload": "Recarregar"
+  "Reload": "Recarregar",
+  "credits set by Flow": "créditos definidos pelo Flow",
+  "{n}+ credits": "{n}+ créditos",
+  "The trial already ran on this Google account": "O teste já foi usado nesta conta do Google",
+  "This licence is no longer valid": "Esta licença não é mais válida"
 }

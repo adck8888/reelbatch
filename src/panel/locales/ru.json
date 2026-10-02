@@ -538,5 +538,9 @@
   "ZIP export is a Pro feature": "Экспорт в ZIP — функция Pro",
   "run.csv saved to Downloads": "run.csv сохранён в «Загрузки»",
   "Reelbatch could not start: {x}": "Reelbatch не смог запуститься: {x}",
-  "Reload": "Перезагрузить"
+  "Reload": "Перезагрузить",
+  "credits set by Flow": "кредиты назначает Flow",
+  "{n}+ credits": "{n}+ кредитов",
+  "The trial already ran on this Google account": "Пробный период на этом Google-аккаунте уже был использован",
+  "This licence is no longer valid": "Эта лицензия больше не действительна"
 }

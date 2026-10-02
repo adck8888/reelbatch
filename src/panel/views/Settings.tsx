@@ -364,7 +364,7 @@ function DiagnosticsCard() {
           small
           variant="ghost"
           icon="external"
-          onClick={() => chrome.tabs.create({ url: `${ISSUES_URL}?title=${encodeURIComponent(`Problem in ${__VERSION__}`)}&body=${encodeURIComponent(`${t('What happened:')}\n\n\n---\n\`\`\`\n${report().slice(0, 4000)}\n\`\`\``)}` })}
+          onClick={() => chrome.tabs.create({ url: `${ISSUES_URL}?title=${encodeURIComponent(`Problem in ${__VERSION__}`)}&body=${encodeURIComponent(`${t('What happened:')}\n\n\n---\n\`\`\`\n${report().slice(0, 1500)}\n\`\`\``)}` })}
         >
           {t('Report a problem')}
         </Button>

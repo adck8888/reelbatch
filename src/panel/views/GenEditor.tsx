@@ -1,5 +1,5 @@
 import type { EngineId, GenSettings, MediaKind, VideoMode } from '../../shared/types';
-import { MODELS, effectiveSettings, estimateCost, modelById, modelsFor } from '../../shared/models';
+import { MODELS, effectiveSettings, estimateCost, hasLiveCost, modelById, modelsFor } from '../../shared/models';
 import { t } from '../i18n';
 import { pro } from '../store';
 import { Field, NumberInput, Select } from '../ui';
@@ -18,7 +18,7 @@ const MAX_SEED = 2147483647;
 
 export function costLabel(s: GenSettings) {
   const c = estimateCost(s);
-  if (s.engine === 'flow') return c ? t('{n} credits', { n: Math.round(c) }) : t('0 credits on most plans');
+  if (s.engine === 'flow') return hasLiveCost(s) ? t('credits set by Flow') : c ? t('{n} credits', { n: Math.round(c) }) : t('0 credits on most plans');
   return `≈ $${c.toFixed(c < 1 ? 3 : 2)}`;
 }
 

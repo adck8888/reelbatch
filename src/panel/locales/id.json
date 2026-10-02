@@ -538,5 +538,9 @@
   "ZIP export is a Pro feature": "Ekspor ZIP adalah fitur Pro",
   "run.csv saved to Downloads": "run.csv disimpan di Downloads",
   "Reelbatch could not start: {x}": "Reelbatch tidak dapat dimulai: {x}",
-  "Reload": "Muat ulang"
+  "Reload": "Muat ulang",
+  "credits set by Flow": "kredit ditentukan Flow",
+  "{n}+ credits": "{n}+ kredit",
+  "The trial already ran on this Google account": "Uji coba sudah digunakan di akun Google ini",
+  "This licence is no longer valid": "Lisensi ini tidak lagi valid"
 }

@@ -538,5 +538,9 @@
   "ZIP export is a Pro feature": "ZIP dışa aktarma bir Pro özelliğidir",
   "run.csv saved to Downloads": "run.csv İndirilenler’e kaydedildi",
   "Reelbatch could not start: {x}": "Reelbatch başlatılamadı: {x}",
-  "Reload": "Yeniden yükle"
+  "Reload": "Yeniden yükle",
+  "credits set by Flow": "kredileri Flow belirler",
+  "{n}+ credits": "{n}+ kredi",
+  "The trial already ran on this Google account": "Deneme bu Google hesabında zaten kullanıldı",
+  "This licence is no longer valid": "Bu lisans artık geçerli değil"
 }

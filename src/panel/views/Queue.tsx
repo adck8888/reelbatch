@@ -9,7 +9,7 @@ import { formatDuration } from '../../shared/util';
 import { PRO } from '../../shared/license';
 import { te } from '../errors';
 import { t } from '../i18n';
-import { characters, createQueue, editQueue, flowStatus, license, openFlow, pro, queue, queueIndex, run, running, selected, sheet, showPlans, showSettings, switchQueue, tab, usedToday } from '../store';
+import { characters, createQueue, editQueue, flowStatus, flushQueue, license, openFlow, pro, queue, queueIndex, run, running, selected, sheet, showPlans, showSettings, switchQueue, tab, usedToday } from '../store';
 import { Button, Chip, Disclosure, Field, Icon, Menu, Modal, NumberInput, ProBadge, Select, Thumb, Toggle, attempt, call, imagesFromDrop, pickImages, toast, type MenuItem } from '../ui';
 import { GenEditor, costLabel, diffSettings } from './GenEditor';
 import { ImportDialog, type Source } from './Import';
@@ -422,7 +422,7 @@ function RowItem(p: {
             value={row.prompt}
             placeholder={t('Prompt…')}
             autoFocus
-            onChange={(e) => p.onPrompt((e.target as HTMLTextAreaElement).value)}
+            onInput={(e) => p.onPrompt((e.target as HTMLTextAreaElement).value)}
             onBlur={() => row.prompt.trim() && setOpen(false)}
           />
         ) : (
@@ -697,7 +697,7 @@ function RunBar({ selecting }: { selecting: boolean }) {
   useEffect(() => {
     const id = setTimeout(async () => setEst(await call<Estimate>({ type: 'run:estimate', queueId: q.id, scope })), 300);
     return () => clearTimeout(id);
-  }, [q, scope, pro.value]);
+  }, [q, scope, pro.value, usedToday.value, run.value.status]);
 
   useEffect(() => {
     if (!active) return;
@@ -717,12 +717,14 @@ function RunBar({ selecting }: { selecting: boolean }) {
 
   const start = async (sc: RunScope = scope) => {
     setRunError(null);
+    await flushQueue(); // a prompt typed a moment ago must reach storage before the background reads the queue
     const res = await attempt({ type: 'run:start', queueId: q.id, scope: sc });
     if (res.error) setRunError(res.error);
   };
   const startTrial = async () => {
     if (!confirm(t('Start the {n}-day Pro trial now?', { n: PRO.trialDays }))) return;
-    await call({ type: 'license:trial' }, t('Trial started: 7 days of Pro'));
+    const r = await call<{ plan: string }>({ type: 'license:trial' });
+    if (r) toast(r.plan === 'trial' ? t('Trial started: 7 days of Pro') : t('The trial already ran on this Google account'), r.plan === 'trial' ? 'ok' : 'error');
   };
   const proAction = license.value.trialStartedAt ? { label: t('Upgrade'), icon: 'rocket', run: showPlans } : { label: t('Start free trial'), icon: 'rocket', run: startTrial };
 
@@ -754,7 +756,7 @@ function RunBar({ selecting }: { selecting: boolean }) {
     });
   }
 
-  const cost = !est ? '' : est.credits > 0 ? t('{n} credits', { n: est.credits }) : est.usd > 0 ? `≈ $${est.usd.toFixed(2)}` : t('0 credits');
+  const cost = !est ? '' : est.liveCost ? (est.credits > 0 ? t('{n}+ credits', { n: est.credits }) : t('credits set by Flow')) : est.credits > 0 ? t('{n} credits', { n: est.credits }) : est.usd > 0 ? `≈ $${est.usd.toFixed(2)}` : t('0 credits');
   const runLabel = selecting ? t('Run {n} selected', { n: est?.rows ?? selected.value.size }) : est ? `${t('Run {n} prompts', { n: est.rows })} · ${cost}` : t('Run');
   const moreItems: MenuItem[] = [
     { label: t('Run not finished'), icon: 'play', run: () => start({ kind: 'pending' }) },
