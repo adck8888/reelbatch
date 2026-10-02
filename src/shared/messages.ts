@@ -54,6 +54,7 @@ export type FlowCommand =
   | { type: 'prepare'; settings: GenSettings; target: string }
   | { type: 'focusEditor' }
   | { type: 'clearEditor' }
+  | { type: 'pasteEditor'; text: string }
   | { type: 'editorText' }
   | { type: 'markGenerate' }
   | { type: 'snapshot' }

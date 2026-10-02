@@ -266,9 +266,12 @@ function settingsPane(): HTMLElement | null {
   return panes.at(-1) ?? null;
 }
 
+const menuOpen = () => $$('.cdk-overlay-pane').some((p) => p.childElementCount) || $$('[aria-expanded="true"]').some(visible);
+
 async function closeOverlays() {
-  for (let i = 0; i < 3 && $$('.cdk-overlay-pane').some((p) => p.childElementCount); i++) {
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+  for (let i = 0; i < 3 && menuOpen(); i++) {
+    // from the focused element so a menu listening on its own button hears it too
+    (document.activeElement ?? document).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
     $(cfg.selectors.backdrop)?.click();
     await sleep(200);
   }
@@ -376,11 +379,11 @@ function mark(el: Element, name: string) {
 async function focusEditor() {
   // an open settings menu would swallow the click meant for the prompt box; once it closes, the
   // menu hands focus back to its button, so wait for that before focusing the box
-  const open = $$('.cdk-overlay-pane').some((p) => p.childElementCount);
+  const open = menuOpen();
   await closeOverlays();
   if (open) await sleep(500);
-  const ed = $(cfg.selectors.editor);
-  if (!visible(ed)) return { ok: false, error: 'Prompt box not found in Flow' };
+  const ed = $$<HTMLElement>(cfg.selectors.editor).find(visible);
+  if (!ed) return { ok: false, error: 'Prompt box not found in Flow' };
   mark(ed, 'editor');
   ed.focus();
   return { ok: true };
@@ -391,8 +394,14 @@ async function focusEditor() {
  * and delete the user's results in the grid. Reports whether keyboard focus is inside the box,
  * because typed text goes wherever the focus is.
  */
+/** The prompt box marked by focusEditor (Flow can keep a hidden second editor in the page). */
+const editorEl = () => {
+  const m = $<HTMLElement>('[data-rb="editor"]');
+  return m?.isConnected && visible(m) ? m : $$<HTMLElement>(cfg.selectors.editor).find(visible) ?? null;
+};
+
 function clearEditor() {
-  const ed = $<HTMLElement>(cfg.selectors.editor);
+  const ed = editorEl();
   if (!ed) return { focused: false, text: '' };
   const focused = !!document.activeElement && (ed === document.activeElement || ed.contains(document.activeElement));
   if (focused && norm(ed.innerText)) {
@@ -407,7 +416,23 @@ function clearEditor() {
 }
 
 function editorText() {
-  return { text: norm($(cfg.selectors.editor)?.innerText) };
+  return { text: norm(editorEl()?.innerText) };
+}
+
+/** Fallback when typed keys do not land: hand the prompt to the box as a paste (no focus needed). */
+function pasteEditor(text: string) {
+  const ed = editorEl();
+  if (!ed) return { text: '' };
+  ed.focus();
+  const range = document.createRange();
+  range.selectNodeContents(ed);
+  const sel = getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+  const dt = new DataTransfer();
+  dt.setData('text/plain', text);
+  ed.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  return { text: norm(ed.innerText) };
 }
 
 function markGenerate() {
@@ -720,6 +745,8 @@ if (ACTIVE) chrome.runtime.onMessage.addListener((msg: FlowCommand | { type: 'co
         return editorText();
       case 'clearEditor':
         return clearEditor();
+      case 'pasteEditor':
+        return pasteEditor(msg.text);
       case 'markGenerate':
         return markGenerate();
       case 'snapshot':

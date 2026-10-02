@@ -180,6 +180,8 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
     let ok = false;
     let why = 'focus stayed outside the prompt box';
     for (let i = 0; i < 2 && !ok; i++) {
+      // a closing menu hands focus back to its button a moment later: let that happen first
+      await sleep(300);
       const c = await sendTab<{ focused: boolean; text: string }>(tabId, { type: 'clearEditor' });
       if (!c.focused) {
         await sendTab(tabId, { type: 'focusEditor' });
@@ -192,6 +194,15 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
       const typed = await sendTab<{ text: string }>(tabId, { type: 'editorText' });
       ok = simplify(typed.text) === want;
       why = `left "${c.text.slice(0, 30)}", box shows "${typed.text.slice(0, 60)}"`;
+    }
+    if (!ok) {
+      // last resort that does not depend on keyboard focus: paste into the box
+      const p = await sendTab<{ text: string }>(tabId, { type: 'pasteEditor', text: job.prompt });
+      await sleep(250);
+      const typed = await sendTab<{ text: string }>(tabId, { type: 'editorText' });
+      ok = simplify(typed.text) === want;
+      if (!ok) why += `; paste gave "${(typed.text || p.text).slice(0, 60)}"`;
+      else await log('info', `Prompt pasted (typing did not land: ${why})`);
     }
     if (!ok) throw new FlowError('setup', `Flow did not accept the typed prompt (${why})`);
 
