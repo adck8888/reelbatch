@@ -25,8 +25,11 @@ export function CharactersView() {
       </p>
       {list.length === 0 ? (
         <div class="empty">
-          <Icon name="user" size={36} />
-          <p class="muted">{t('No characters yet')}</p>
+          <span class="empty-icon">
+            <Icon name="user" size={26} />
+          </span>
+          <h3>{t('No characters yet')}</h3>
+          <p class="muted">{t('Add a person, product or mascot once with a few photos, then write @Name in any prompt.')}</p>
         </div>
       ) : (
         <ul class="char-list">

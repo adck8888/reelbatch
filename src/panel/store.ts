@@ -19,6 +19,12 @@ export type Tab = 'queue' | 'characters' | 'history' | 'settings';
 export const tab = signal<Tab>('queue');
 export const selected = signal<Set<string>>(new Set());
 
+/** Open Settings at the top, where the plan card compares Free and Pro. */
+export function showPlans() {
+  tab.value = 'settings';
+  requestAnimationFrame(() => window.scrollTo({ top: 0 }));
+}
+
 export const plan = computed(() => licenseStatus(license.value));
 export const pro = computed(() => plan.value !== 'free');
 export const trialLeft = computed(() => trialDaysLeft(license.value));

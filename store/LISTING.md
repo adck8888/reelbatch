@@ -27,6 +27,10 @@ Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of pro
 • Replicate: Kling 3.0, Seedance 2.0, Hailuo 2.3, Veo 3.1, FLUX.2 [pro], GPT Image 2, Ideogram 3 Turbo and Nano Banana Pro
 • You pay the provider directly at their prices. No markup, no middle server.
 
+### Animate photos in bulk (Pro)
+• Drop a folder of photos, write one motion prompt, get one video per photo, named after the source file
+• Each photo becomes the start frame (or a reference image) of its own clip
+
 ### Consistency and storytelling
 • Characters: write @Mia in any prompt, and her reference images and description are attached automatically
 • Chaining: each clip starts from the last frame of the previous one
@@ -49,7 +53,7 @@ Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of pro
 
 ### Free and Pro
 **Free:** Google Flow, 30 prompts a day, one at a time, auto-download, TXT/CSV/DOCX import.
-**Pro ($9/month or $69 once):** unlimited prompts, parallel runs and several tabs, API engines, characters, chaining, image→video, upscaled downloads, scheduler, AI helper, Sheets/Excel/JSON import, ZIP export.
+**Pro ($9/month or $69 once):** no daily limit, parallel runs and several tabs, API engines, animate photos in bulk, characters, chaining, image→video, upscaled downloads, scheduler, AI helper, Sheets/Excel/JSON import, ZIP export.
 A 7-day Pro trial is included and needs no card.
 
 ### FAQ

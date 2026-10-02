@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { GenSettings, Row, RowRun, RunScope } from '../../shared/types';
-import type { Estimate } from '../../shared/messages';
+import { send, type Estimate } from '../../shared/messages';
 import { effectiveSettings, modelById } from '../../shared/models';
 import { newRow } from '../../shared/parse';
 import { deleteQueue, newQueue } from '../../shared/storage';
@@ -8,7 +8,7 @@ import { unknownMentions } from '../../shared/characters';
 import { formatDuration } from '../../shared/util';
 import { PRO } from '../../shared/license';
 import { t } from '../i18n';
-import { characters, createQueue, editQueue, license, pro, queue, queueIndex, run, running, selected, switchQueue, tab, usedToday } from '../store';
+import { characters, createQueue, editQueue, license, pro, queue, queueIndex, run, running, selected, showPlans, switchQueue, tab, usedToday } from '../store';
 import { Button, Field, Icon, Modal, ProBadge, Select, Thumb, Toggle, call, imagesFromDrop, pickImages, toast } from '../ui';
 import { GenEditor, costLabel, diffSettings } from './GenEditor';
 import { ImportDialog } from './Import';
@@ -79,25 +79,35 @@ export function QueueView() {
           else await createQueue(newQueue(`${t('Queue')} 1`));
         }} />
         <span class="grow" />
-        <Button small icon="spark" onClick={() => setImporting('helper')}>
-          {t('AI')}
-        </Button>
-        <Button small variant="primary" icon="plus" onClick={() => setImporting('paste')}>
-          {t('Add prompts')}
-        </Button>
+        {q.rows.length > 0 && (
+          <>
+            <Button small variant="ghost" icon="spark" title={t('Write or vary prompts with the AI helper')} onClick={() => setImporting('helper')}>
+              {t('AI')}
+            </Button>
+            <Button small icon="plus" class="add-prompts" onClick={() => setImporting('paste')}>
+              {t('Add prompts')}
+            </Button>
+          </>
+        )}
       </div>
 
+      <GettingStarted />
+
       <section class={`defaults ${showDefaults ? 'open' : ''}`}>
-        <button type="button" class="defaults-head" onClick={() => setShowDefaults(!showDefaults)}>
-          <Icon name={q.defaults.kind === 'video' ? 'video' : 'image'} />
-          <span>
-            {modelById(q.defaults.model)?.label} · {q.defaults.aspect}
-            {q.defaults.count > 1 ? ` · ×${q.defaults.count}` : ''}
-            {q.defaults.duration && q.defaults.kind === 'video' ? ` · ${q.defaults.duration}s` : ''}
+        <button type="button" class="defaults-head" aria-expanded={showDefaults} title={t('Model, aspect and other settings every row uses unless it has its own')} onClick={() => setShowDefaults(!showDefaults)}>
+          <span class="defaults-icon">
+            <Icon name={q.defaults.kind === 'video' ? 'video' : 'image'} />
           </span>
-          <span class="muted">{costLabel(q.defaults)}</span>
-          <span class="grow" />
-          <span class="muted">{showDefaults ? t('Hide') : t('Settings')}</span>
+          <span class="defaults-text">
+            <span class="eyebrow">{t('Default for all rows')}</span>
+            <span class="defaults-value">
+              <b>{modelById(q.defaults.model)?.label}</b> · {q.defaults.aspect}
+              {q.defaults.count > 1 ? ` · ×${q.defaults.count}` : ''}
+              {q.defaults.duration && q.defaults.kind === 'video' ? ` · ${q.defaults.duration}s` : ''}
+            </span>
+            <span class="defaults-cost">{costLabel(q.defaults)}</span>
+          </span>
+          <span class="change">{showDefaults ? t('Done') : t('Change')}</span>
         </button>
         {showDefaults && <GenEditor value={q.defaults} onChange={(d) => editQueue((x) => void (x.defaults = d))} />}
       </section>
@@ -183,19 +193,138 @@ export function QueueView() {
 
 function Empty({ onAdd, onAi }: { onAdd: () => void; onAi: () => void }) {
   return (
-    <div class="empty">
-      <Icon name="list" size={36} />
+    <div class="empty queue-empty">
+      <span class="empty-icon">
+        <Icon name="list" size={26} />
+      </span>
       <h3>{t('Your queue is empty')}</h3>
       <p class="muted">{t('Paste a list of prompts, import a CSV or spreadsheet, or let the AI helper write them.')}</p>
-      <div class="row-wrap center">
-        <Button variant="primary" icon="plus" onClick={onAdd}>
-          {t('Add prompts')}
-        </Button>
-        <Button icon="spark" onClick={onAi}>
-          {t('Write with AI')}
-        </Button>
-      </div>
+      <Button variant="primary" icon="plus" class="big add-prompts" onClick={onAdd}>
+        {t('Add prompts')}
+      </Button>
+      <p class="formats">{t('One prompt per line · TXT, CSV, DOCX · Sheets, Excel, JSON with Pro')}</p>
+      <Button small variant="ghost" icon="spark" onClick={onAi}>
+        {t('Write with AI')}
+      </Button>
     </div>
+  );
+}
+
+// ---------- getting started ----------
+
+const GS_KEY = 'reelbatch.gettingStarted';
+const readGs = (): string | null => {
+  try {
+    return localStorage.getItem(GS_KEY);
+  } catch {
+    return null;
+  }
+};
+const writeGs = (v: string) => {
+  try {
+    localStorage.setItem(GS_KEY, v);
+  } catch {
+    /* storage blocked: the checklist simply shows again next time */
+  }
+};
+
+interface FlowTabInfo {
+  id: number;
+  url: string;
+}
+
+/**
+ * First-run checklist: Flow project open → prompts added → Run pressed. Hidden for good once all
+ * three are done or the user dismisses it. The Flow step polls the open Flow tabs while it is pending.
+ */
+function GettingStarted() {
+  const [state, setState] = useState(readGs);
+  /** null = not checked yet; otherwise whether a Flow tab / a Flow project is open. */
+  const [flow, setFlow] = useState<{ tab: boolean; project: boolean } | null>(null);
+  const q = queue.value;
+  const r = run.value;
+  const hasRows = !!q && q.rows.length > 0;
+  const ran = !!r.runId || r.status !== 'idle' || usedToday.value > 0;
+  const flowOk = !!flow?.project || ran;
+  const hidden = state === 'done' || state === 'dismissed';
+
+  useEffect(() => {
+    if (hidden || flowOk) return;
+    let alive = true;
+    const check = async () => {
+      const tabs = await send<FlowTabInfo[]>({ type: 'flow:tabs' }).catch(() => null);
+      if (!alive || !tabs) return;
+      setFlow({ tab: tabs.length > 0, project: tabs.some((x) => /\/project\//.test(x.url)) });
+    };
+    void check();
+    const id = setInterval(check, 3000);
+    window.addEventListener('focus', check);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener('focus', check);
+    };
+  }, [hidden, flowOk]);
+
+  const allDone = flowOk && hasRows && ran;
+  useEffect(() => {
+    if (allDone && !hidden) {
+      writeGs('done');
+      // leave the finished list up for a moment so the last tick is seen
+      const id = setTimeout(() => setState('done'), 2500);
+      return () => clearTimeout(id);
+    }
+  }, [allDone, hidden]);
+
+  if (hidden) return null;
+  const dismiss = () => {
+    writeGs('dismissed');
+    setState('dismissed');
+  };
+  const steps: { done: boolean; title: string; hint: string; action?: preact.ComponentChildren }[] = [
+    {
+      done: flowOk,
+      title: t('Open a Flow project'),
+      hint: flowOk ? t('Flow project found') : flow?.tab ? t('Flow is open: open or create a project in it') : t('Sign in to Flow and open a project'),
+      action: !flowOk && (
+        <Button small icon="external" onClick={() => call({ type: 'flow:open' })}>
+          {flow?.tab ? t('Show Flow') : t('Open Flow')}
+        </Button>
+      )
+    },
+    {
+      done: hasRows,
+      title: t('Add prompts'),
+      hint: hasRows ? t('{n} prompts', { n: q?.rows.length ?? 0 }) : t('Paste a list or import a file')
+    },
+    {
+      done: ran,
+      title: t('Press Run'),
+      hint: ran ? t('Your first run has started') : t('Reelbatch types each prompt into Flow and saves the results')
+    }
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  return (
+    <section class="getting-started" aria-label={t('Getting started')}>
+      <header>
+        <b>{t('Getting started')}</b>
+        <span class="muted">{t('{n} of {max}', { n: doneCount, max: steps.length })}</span>
+        <span class="grow" />
+        <Button small variant="ghost" icon="x" title={t('Hide this checklist')} aria-label={t('Hide this checklist')} onClick={dismiss} />
+      </header>
+      <ol>
+        {steps.map((s, i) => (
+          <li key={i} class={s.done ? 'done' : ''}>
+            <span class="gs-mark">{s.done ? <Icon name="check" size={13} /> : i + 1}</span>
+            <span class="gs-text">
+              <span class="gs-title">{s.title}</span>
+              <span class="gs-hint">{s.hint}</span>
+            </span>
+            {s.action || null}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -262,17 +391,18 @@ function RowItem(p: {
               <Icon name={res.kind === 'video' ? 'video' : 'image'} size={12} />
             </a>
           ))}
+          {!row.enabled && <span class="tag">{t('Off')}</span>}
         </div>
       </div>
       <div class="row-actions">
-        <Button small variant="ghost" icon="edit" title={t('Edit row')} onClick={p.onEdit} />
+        <Button small variant="ghost" icon="edit" class="row-edit" title={t('Edit row')} onClick={p.onEdit} />
         <RowMenu
           items={[
-            { label: row.enabled ? t('Disable') : t('Enable'), run: p.onToggle },
-            { label: t('Move up'), run: () => p.onMove(-1) },
-            { label: t('Move down'), run: () => p.onMove(1) },
-            { label: t('Duplicate'), run: p.onDuplicate },
-            { label: t('Delete'), run: p.onDelete, danger: true }
+            { label: row.enabled ? t('Disable') : t('Enable'), icon: 'toggle', run: p.onToggle },
+            { label: t('Move up'), icon: 'up', run: () => p.onMove(-1) },
+            { label: t('Move down'), icon: 'down', run: () => p.onMove(1) },
+            { label: t('Duplicate'), icon: 'copy', run: p.onDuplicate },
+            { label: t('Delete'), icon: 'trash', run: p.onDelete, danger: true }
           ]}
         />
       </div>
@@ -281,7 +411,7 @@ function RowItem(p: {
 }
 
 /** The row's "⋯" menu: closes after any item, on Esc and on a click outside it. */
-function RowMenu({ items }: { items: { label: string; run: () => void; danger?: boolean }[] }) {
+function RowMenu({ items }: { items: { label: string; icon: string; run: () => void; danger?: boolean }[] }) {
   const ref = useRef<HTMLDetailsElement>(null);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -298,7 +428,9 @@ function RowMenu({ items }: { items: { label: string; run: () => void; danger?: 
   }, [open]);
   return (
     <details class="menu" ref={ref} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
-      <summary class="btn ghost sm icon-only" aria-label={t('More')}>⋯</summary>
+      <summary class="btn ghost sm icon-only" aria-label={t('More')} title={t('More actions')}>
+        <Icon name="more" size={16} />
+      </summary>
       <div class="menu-pop">
         {items.map((it) => (
           <button
@@ -310,7 +442,8 @@ function RowMenu({ items }: { items: { label: string; run: () => void; danger?: 
               it.run();
             }}
           >
-            {it.label}
+            <Icon name={it.icon} size={14} />
+            <span>{it.label}</span>
           </button>
         ))}
       </div>
@@ -425,7 +558,7 @@ function RowEditor({ row: initial, onClose }: { row: Row; onClose: (saved: boole
       </div>
 
       <div class="sub name-fields">
-        <Field label={t('File name')} hint={t('Template, e.g. {n}_{prompt30}. Empty = queue default')}>
+        <Field label={t('File name')} tip={t('A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4')} hint={t('Template, e.g. {n}_{prompt30}. Empty = queue default')}>
           <input type="text" value={row.filename ?? ''} onInput={(e) => setRow({ ...row, filename: (e.target as HTMLInputElement).value || undefined })} />
         </Field>
         <Field label={t('Folder')}>
@@ -567,11 +700,17 @@ function RunBar() {
             {t('Show it')}
           </Button>
         </div>
+      ) : q.rows.length === 0 ? (
+        <div class="run-empty">
+          <Icon name="play" size={14} />
+          <span>{t('Add prompts, then press Run to generate them one by one.')}</span>
+        </div>
       ) : (
         <>
           {r.message && mine && r.status === 'idle' && <div class="run-msg idle">{r.message}</div>}
-          <div class="row-wrap">
+          <div class="row-wrap run-controls">
             <Select<RunScope['kind']>
+              title={t('Which rows to run: all, the ticked ones, failed ones, unfinished ones or a range of row numbers')}
               value={scopeKind}
               options={[
                 { value: 'all', label: t('All rows') },
@@ -583,14 +722,14 @@ function RunBar() {
               onChange={setScopeKind}
             />
             {scopeKind === 'range' && (
-              <span class="range">
+              <span class="range" title={t('Row numbers to run, e.g. 5–20')}>
                 <input type="number" min={1} max={n} step={1} value={range.from} aria-label={t('From row')} onChange={(e) => setEdge('from', e.currentTarget as HTMLInputElement)} />
                 –
                 <input type="number" min={1} max={n} step={1} value={range.to} aria-label={t('To row')} onChange={(e) => setEdge('to', e.currentTarget as HTMLInputElement)} />
               </span>
             )}
             <span class="grow" />
-            <Button variant="primary" icon="play" disabled={!est?.rows || (est?.proNeeded.length ?? 0) > 0} onClick={start}>
+            <Button variant="primary" icon="play" class="run-btn" disabled={!est?.rows || (est?.proNeeded.length ?? 0) > 0} onClick={start}>
               {t('Run')}
             </Button>
           </div>
@@ -609,20 +748,34 @@ function RunBar() {
           )}
           {est && est.proNeeded.length > 0 && (
             <div class="pro-needed">
-              <ProBadge /> {t('Needs Pro')}: {est.proNeeded.map((x) => t(x)).join(', ')}.{' '}
-              {license.value.trialStartedAt ? (
-                <Button small variant="ghost" onClick={() => (tab.value = 'settings')}>
-                  {t('Upgrade')}
+              <div class="pro-needed-text">
+                <ProBadge /> <span>{t('Needs Pro')}: {est.proNeeded.map((x) => t(x)).join(', ')}.</span>
+              </div>
+              <div class="row-wrap">
+                {license.value.trialStartedAt ? (
+                  <Button small variant="primary" onClick={showPlans}>
+                    {t('Upgrade')}
+                  </Button>
+                ) : (
+                  <Button small variant="primary" onClick={startTrial}>
+                    {t('Start free trial')}
+                  </Button>
+                )}
+                <Button small variant="ghost" onClick={showPlans}>
+                  {t('Compare Free and Pro')}
                 </Button>
-              ) : (
-                <Button small variant="ghost" onClick={startTrial}>
-                  {t('Start free trial')}
-                </Button>
-              )}
+              </div>
             </div>
           )}
           {!pro.value && usedToday.value >= PRO.freePerDay && (
-            <div class="pro-needed">{t('Daily free limit used. Upgrade for unlimited prompts.')}</div>
+            <div class="pro-needed">
+              <div class="pro-needed-text">{t('Daily free limit used. Upgrade for unlimited prompts.')}</div>
+              <div class="row-wrap">
+                <Button small variant="ghost" onClick={showPlans}>
+                  {t('Compare Free and Pro')}
+                </Button>
+              </div>
+            </div>
           )}
         </>
       )}

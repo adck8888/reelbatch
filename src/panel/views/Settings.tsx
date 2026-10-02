@@ -72,42 +72,99 @@ function LicenseCard() {
           <b>{t('Pro trial')}</b> {t('{n} days left', { n: trialLeft.value })}
         </div>
       )}
-      {p === 'free' && (
+      {p === 'free' && l.key && l.error && (
         <div class="plan free">
-          <b>{t('Free')}</b> {t('{n} of {max} prompts used today', { n: usedToday.value, max: PRO.freePerDay })}
-          {l.key && l.error && <div class="err">{t('Licence problem')}: {l.error}</div>}
+          <div class="err">{t('Licence problem')}: {l.error}</div>
         </div>
       )}
       {p !== 'pro' && (
         <>
-          <ul class="pro-list">
-            <li>{t('Unlimited prompts per day')}</li>
-            <li>{t('Parallel runs and several Flow tabs')}</li>
-            <li>{t('Characters, chaining and image→video')}</li>
-            <li>{t('Gemini API and Replicate with your own keys')}</li>
-            <li>{t('Upscaled downloads, ZIP export, scheduler, AI prompt helper')}</li>
-            <li>{t('Google Sheets, XLSX and JSON import')}</li>
-          </ul>
-          <div class="row-wrap">
-            <Button variant="primary" onClick={() => chrome.tabs.create({ url: PRO.lifetimeUrl })}>
-              {t('{price} — lifetime', { price: PRO.lifetimePrice })}
-            </Button>
-            <Button onClick={() => chrome.tabs.create({ url: PRO.monthlyUrl })}>{t('{price}/month', { price: PRO.monthlyPrice.replace(/\s*\/\s*month$/i, '') })}</Button>
+          <PlanCompare />
+          <div class="buy">
             {!l.trialStartedAt && (
-              <Button variant="ghost" onClick={() => call({ type: 'license:trial' }, t('Trial started: 7 days of Pro'))}>
+              <Button variant="primary" class="big trial-btn" onClick={() => call({ type: 'license:trial' }, t('Trial started: 7 days of Pro'))}>
                 {t('Start 7-day trial')}
               </Button>
             )}
+            <div class="buy-prices">
+              <Button variant={l.trialStartedAt ? 'primary' : 'default'} onClick={() => chrome.tabs.create({ url: PRO.lifetimeUrl })}>
+                {t('{price} — lifetime', { price: PRO.lifetimePrice })}
+              </Button>
+              <Button onClick={() => chrome.tabs.create({ url: PRO.monthlyUrl })}>{t('{price}/month', { price: PRO.monthlyPrice.replace(/\s*\/\s*month$/i, '') })}</Button>
+            </div>
+            <p class="hint center">{t('{n}-day free trial, no card needed. Cancel the monthly plan any time.', { n: PRO.trialDays })}</p>
           </div>
-          <div class="row-wrap">
-            <input type="text" class="grow" value={key} placeholder={t('Licence key from your email')} onInput={(e) => setKey((e.target as HTMLInputElement).value)} />
-            <Button disabled={busy || key.trim().length < 16} onClick={activate}>
-              {busy ? t('Checking…') : t('Activate')}
-            </Button>
-          </div>
+          <Field label={t('Already bought Pro?')}>
+            <div class="row-wrap nowrap">
+              <input type="text" class="grow" value={key} placeholder={t('Licence key from your email')} onInput={(e) => setKey((e.target as HTMLInputElement).value)} />
+              <Button disabled={busy || key.trim().length < 16} onClick={activate}>
+                {busy ? t('Checking…') : t('Activate')}
+              </Button>
+            </div>
+          </Field>
         </>
       )}
     </Card>
+  );
+}
+
+/** Free vs Pro, framed as what each plan lets you get done. */
+function PlanCompare() {
+  const free = [
+    t('Google Flow with every model'),
+    t('{n} prompts a day', { n: PRO.freePerDay }),
+    t('One prompt at a time'),
+    t('Auto-download with clear file names'),
+    t('Import TXT, CSV and DOCX')
+  ];
+  const pro: [string, string][] = [
+    [t('No daily limit'), t('run hundreds of prompts in one go')],
+    [t('Parallel tabs'), t('finish big batches several times faster')],
+    [t('Your own Gemini and Replicate keys'), t('Kling, Seedance, Veo and more')],
+    [t('Animate photos in bulk'), t('a folder of images becomes a set of videos')],
+    [t('Characters with @mentions'), t('the same face or product in every shot')],
+    [t('Chained clips'), t('each video continues from the last frame')],
+    [t('Image → video pipeline'), t('make a still, then animate it, in one run')],
+    [t('Upscaled 2K / 4K downloads'), t('ready to publish')],
+    [t('Scheduler'), t('start a run while you are away')],
+    [t('AI prompt helper'), t('writes and varies prompts for you')],
+    [t('Sheets, Excel and JSON import, ZIP export'), t('bring whole content plans in and out')]
+  ];
+  return (
+    <div class="compare">
+      <div class="compare-col free">
+        <div class="compare-head">
+          <b>{t('Free')}</b>
+          <span class="muted">{t('Try it on real work')}</span>
+          {plan.value === 'free' && <span class="used">{t('{n} of {max} prompts used today', { n: usedToday.value, max: PRO.freePerDay })}</span>}
+        </div>
+        <ul>
+          {free.map((x) => (
+            <li key={x}>
+              <Icon name="check" size={13} />
+              <span>{x}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div class="compare-col pro">
+        <div class="compare-head">
+          <b>Pro</b>
+          <span class="price">{t('{monthly}/month or {lifetime} once', { monthly: PRO.monthlyPrice.replace(/\s*\/\s*month$/i, ''), lifetime: PRO.lifetimePrice.replace(/\s*once$/i, '') })}</span>
+        </div>
+        <span class="compare-sub">{t('Everything in Free, plus:')}</span>
+        <ul>
+          {pro.map(([a, b]) => (
+            <li key={a}>
+              <Icon name="check" size={13} />
+              <span>
+                <b>{a}</b> — {b}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 
@@ -123,7 +180,7 @@ function RunCard() {
   return (
     <Card title={t('Running')}>
       <div class="grid2">
-        <Field label={t('Pause between prompts, seconds')} hint={t('A random pause in this range makes the run look human')}>
+        <Field label={t('Pause between prompts, seconds')} tip={t('Reelbatch waits a random time between these two numbers before the next prompt')} hint={t('Gives Flow time to finish before the next prompt')}>
           <span class="range">
             <NumberInput value={o.delayMin} min={0} max={600} width={64} onChange={(v) => set((r) => void ((r.delayMin = v), (r.delayMax = Math.max(v, r.delayMax))))} />
             –
@@ -133,19 +190,19 @@ function RunCard() {
         <Field label={t('Reading pause per 100 characters, s')}>
           <NumberInput value={o.readingPause} min={0} max={30} step={0.5} width={64} onChange={(v) => set((r) => void (r.readingPause = v))} />
         </Field>
-        <Field label={<>{t('Prompts at the same time')} {!pro.value && <ProBadge />}</>} hint={t('Flow renders several prompts in parallel; 2–3 is a safe maximum per tab')}>
+        <Field label={<>{t('Prompts at the same time')} {!pro.value && <ProBadge />}</>} tip={t('Concurrency: how many prompts render at once in each Flow tab. Free runs one at a time.')} hint={t('Flow renders several prompts in parallel; 2–3 is a safe maximum per tab')}>
           <NumberInput value={o.concurrency} min={1} max={8} width={64} onChange={(v) => set((r) => void (r.concurrency = v))} />
         </Field>
-        <Field label={t('Retries per prompt')}>
+        <Field label={t('Retries per prompt')} tip={t('How many times a failed prompt is tried again before it is marked Failed')}>
           <NumberInput value={o.retries} min={0} max={5} width={64} onChange={(v) => set((r) => void (r.retries = v))} />
         </Field>
-        <Field label={t('Pause after failures in a row')} hint={t('0 = never')}>
+        <Field label={t('Pause after failures in a row')} tip={t('The run pauses after this many prompts fail in a row, so a broken tab does not burn through the queue')} hint={t('0 = never')}>
           <NumberInput value={o.stopAfterFails} min={0} max={50} width={64} onChange={(v) => set((r) => void (r.stopAfterFails = v))} />
         </Field>
-        <Field label={t('Credit budget per run')} hint={t('Stops before spending more Flow credits. 0 = no limit')}>
+        <Field label={t('Credit budget per run')} tip={t('Budget guard: the run stops before it would spend more Flow credits than this')} hint={t('Stops before spending more Flow credits. 0 = no limit')}>
           <NumberInput value={o.budgetCredits} min={0} width={90} onChange={(v) => set((r) => void (r.budgetCredits = v))} />
         </Field>
-        <Field label={t('API budget per run, $')} hint={t('0 = no limit')}>
+        <Field label={t('API budget per run, $')} tip={t('Budget guard for Gemini and Replicate: the run stops before it would spend more than this')} hint={t('0 = no limit')}>
           <NumberInput value={o.budgetUsd} min={0} step={0.5} width={90} onChange={(v) => set((r) => void (r.budgetUsd = v))} />
         </Field>
       </div>
@@ -188,10 +245,10 @@ function DownloadCard() {
       {d.enabled && (
         <>
           <div class="grid2">
-            <Field label={t('Folder')}>
+            <Field label={t('Folder')} tip={t('A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}')}>
               <input type="text" value={d.folder} onChange={(e) => set((x) => void (x.folder = (e.target as HTMLInputElement).value || 'Reelbatch'))} />
             </Field>
-            <Field label={t('File name')}>
+            <Field label={t('File name')} tip={t('A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4')}>
               <input type="text" value={d.filename} onChange={(e) => set((x) => void (x.filename = (e.target as HTMLInputElement).value || '{n}'))} />
             </Field>
           </div>

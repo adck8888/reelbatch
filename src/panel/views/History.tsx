@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { HistoryItem } from '../../shared/types';
 import { clearHistory, deleteHistory, listHistory } from '../../shared/idb';
 import { t } from '../i18n';
-import { pro, run } from '../store';
+import { pro, run, tab } from '../store';
 import { Button, Icon, ProBadge, Thumb, call, copyText } from '../ui';
 import { addPromptsFromHistory } from './Queue';
 
@@ -71,8 +71,16 @@ export function HistoryView() {
 
       {items.length === 0 ? (
         <div class="empty">
-          <Icon name="image" size={36} />
-          <p class="muted">{query ? t('Nothing matches') : t('Finished images and videos appear here')}</p>
+          <span class="empty-icon">
+            <Icon name={query ? 'search' : 'image'} size={26} />
+          </span>
+          <h3>{query ? t('Nothing matches') : t('No results yet')}</h3>
+          <p class="muted">{query ? t('Try another word from the prompt.') : t('Finished images and videos appear here')}</p>
+          {!query && (
+            <Button small icon="list" onClick={() => (tab.value = 'queue')}>
+              {t('Go to the queue')}
+            </Button>
+          )}
         </div>
       ) : view === 'grid' ? (
         <div class="gallery">

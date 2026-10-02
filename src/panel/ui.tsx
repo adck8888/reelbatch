@@ -76,7 +76,13 @@ const PATHS: Record<string, string> = {
   external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
   search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5',
   key: 'M15 7a4 4 0 11-4 4M11 11l-8 8M6 16l2 2M8 14l2 2',
-  heart: 'M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z'
+  heart: 'M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z',
+  info: 'M12 21a9 9 0 110-18 9 9 0 010 18zM12 11v5M12 8h.01',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  chevron: 'M9 6l6 6-6 6',
+  lock: 'M6 11h12v9H6zM8 11V8a4 4 0 018 0v3',
+  rocket: 'M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2M9 15l-3-3c1-4 4-8 11-9-1 7-5 10-9 11zM14 10h.01',
+  toggle: 'M8 7h8a5 5 0 010 10H8A5 5 0 018 7zM8 15a3 3 0 100-6 3 3 0 000 6z'
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof PATHS | string; size?: number }) {
@@ -100,10 +106,13 @@ export function Button({ icon, variant = 'default', small, children, class: cls,
   );
 }
 
-export function Field({ label, hint, children, inline }: { label: ComponentChildren; hint?: ComponentChildren; children: ComponentChildren; inline?: boolean }) {
+export function Field({ label, hint, children, inline, tip }: { label: ComponentChildren; hint?: ComponentChildren; children: ComponentChildren; inline?: boolean; tip?: string }) {
   return (
     <label class={`field ${inline ? 'inline' : ''}`}>
-      <span class="label">{label}</span>
+      <span class="label">
+        {label}
+        {tip && <Tip text={tip} />}
+      </span>
       {children}
       {hint && <span class="hint">{hint}</span>}
     </label>
@@ -188,6 +197,15 @@ export function Modal({ title, onClose, children, footer, wide }: { title: strin
         {footer && <footer>{footer}</footer>}
       </div>
     </div>
+  );
+}
+
+/** A small ⓘ with a tooltip; for controls whose effect is not obvious from the label. */
+export function Tip({ text }: { text: string }) {
+  return (
+    <span class="tip" title={text} aria-label={text} role="img" tabIndex={0}>
+      <Icon name="info" size={13} />
+    </span>
   );
 }
 

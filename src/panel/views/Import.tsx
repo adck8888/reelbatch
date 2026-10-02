@@ -9,8 +9,9 @@ import { errText } from '../../shared/util';
 import { t } from '../i18n';
 import { editQueue, pro, queue } from '../store';
 import { Button, Field, Modal, NumberInput, ProBadge, Select, Toggle, call, toast } from '../ui';
+import { ImagesPane } from './ImportImages';
 
-type Source = 'paste' | 'file' | 'sheets' | 'helper';
+type Source = 'paste' | 'file' | 'sheets' | 'helper' | 'images';
 
 const FIELDS: { value: MapField; label: string }[] = [
   { value: 'ignore', label: '— ignore —' },
@@ -105,7 +106,9 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
   };
 
   const rows: ImportRow[] = src === 'paste' ? pasted : tableRows;
-  const canAdd = rows.length > 0 && src !== 'helper';
+  /** Panes with their own add buttons (no shared footer, template or preview). */
+  const ownPane = src === 'helper' || src === 'images';
+  const canAdd = rows.length > 0 && !ownPane;
   const warned = rows.filter((r) => r.warnings?.length).length;
   /** The first rows, plus any later row that has warnings, so none of them goes unseen. */
   const previewRows = rows
@@ -119,7 +122,7 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
       onClose={onClose}
       wide
       footer={
-        src !== 'helper' && (
+        !ownPane && (
           <>
             <span class="muted">{t('{n} rows', { n: rows.length })}</span>
             <span class="grow" />
@@ -134,10 +137,10 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
       }
     >
       <div class="seg">
-        {(['paste', 'file', 'sheets', 'helper'] as Source[]).map((s) => (
+        {(['paste', 'file', 'sheets', 'images', 'helper'] as Source[]).map((s) => (
           <button type="button" key={s} class={src === s ? 'on' : ''} onClick={() => setSrc(s)}>
-            {{ paste: t('Paste'), file: t('File'), sheets: 'Google Sheets', helper: t('AI helper') }[s]}
-            {(s === 'sheets' || s === 'helper') && !pro.value && <ProBadge />}
+            {{ paste: t('Paste'), file: t('File'), sheets: 'Google Sheets', images: t('Images'), helper: t('AI helper') }[s]}
+            {(s === 'sheets' || s === 'helper' || s === 'images') && !pro.value && <ProBadge />}
           </button>
         ))}
       </div>
@@ -228,8 +231,9 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
       )}
 
       {src === 'helper' && <HelperPane />}
+      {src === 'images' && <ImagesPane onDone={onClose} />}
 
-      {src !== 'helper' && (
+      {!ownPane && (
         <details class="template">
           <summary>{t('Template: prefix, suffix, repeat')}</summary>
           <div class="row-wrap">
@@ -247,7 +251,7 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
         </details>
       )}
 
-      {src !== 'helper' && rows.length > 0 && (
+      {!ownPane && rows.length > 0 && (
         <ol class="preview">
           {previewRows.map(({ r, i }) => (
             <li key={r.id} value={i + 1}>

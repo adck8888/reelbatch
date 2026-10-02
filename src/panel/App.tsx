@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { PRO } from '../shared/license';
 import { t } from './i18n';
-import { plan, ready, run, saveSettings, settings, tab, trialLeft, usedToday, type Tab } from './store';
+import { plan, ready, run, saveSettings, settings, showPlans, tab, trialLeft, usedToday, type Tab } from './store';
 import { Button, Icon, Toasts, call } from './ui';
 import { QueueView } from './views/Queue';
 import { CharactersView } from './views/Characters';
@@ -65,7 +65,7 @@ function PlanBadge() {
   const p = plan.value;
   const label = p === 'pro' ? 'Pro' : p === 'trial' ? t('Trial · {n}d', { n: trialLeft.value }) : t('Free · {n}/{max}', { n: usedToday.value, max: PRO.freePerDay });
   return (
-    <button type="button" class={`plan-badge ${p}`} onClick={() => (tab.value = 'settings')} title={t('Plan')}>
+    <button type="button" class={`plan-badge ${p}`} onClick={showPlans} title={t('Compare Free and Pro')}>
       {label}
     </button>
   );
