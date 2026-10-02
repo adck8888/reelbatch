@@ -418,5 +418,6 @@
   "{n} images have no prompt line and will be skipped": "{n} gambar tidak punya baris prompt dan akan dilewati",
   "{n} of {max}": "{n} dari {max}",
   "{n} prompts a day": "{n} prompt per hari",
-  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "Uji coba gratis {n} hari, tanpa kartu. Batalkan paket bulanan kapan saja."
+  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "Uji coba gratis {n} hari, tanpa kartu. Batalkan paket bulanan kapan saja.",
+  "Retrying: {error}": "Mencoba lagi: {error}"
 }

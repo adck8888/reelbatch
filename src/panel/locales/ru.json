@@ -418,5 +418,6 @@
   "{n} images have no prompt line and will be skipped": "Без строки промпта (будут пропущены): {n}",
   "{n} of {max}": "{n} из {max}",
   "{n} prompts a day": "{n} промптов в день",
-  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "Бесплатный пробный период {n} дней, без карты. Месячный план можно отменить в любой момент."
+  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "Бесплатный пробный период {n} дней, без карты. Месячный план можно отменить в любой момент.",
+  "Retrying: {error}": "Повтор: {error}"
 }

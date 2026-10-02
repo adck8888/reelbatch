@@ -65,6 +65,8 @@ export interface RowRun {
   status: RowStatus;
   attempts: number;
   error?: string;
+  /** The error above is being retried automatically: a notice, not a failure. */
+  retrying?: boolean;
   results: ResultMedia[];
   cost?: number;
   startedAt?: number;

@@ -556,8 +556,6 @@ async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchO
   const known = new Set(c.known);
   const baseAlerts = new Set(alertEls());
   const baseFails = new Set(failedTileEls());
-  // Tiles already on the page are not ours (DOM is used only when the network identified nothing).
-  const baseDom = new Set(domMedia().map((m) => m.mediaId));
   const end = Date.now() + c.timeoutMs;
   let idleSince = 0;
   const match = simplify(c.prompt).slice(0, 60);
@@ -571,9 +569,16 @@ async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchO
       // the response to our own generate request, or a non-generate response (status poll) naming our prompt
       if (m.req && c.req ? m.req === c.req : mine(m.ctx)) take(m);
     }
-    // Single job in this tab and the network identified nothing: new tiles on the page.
+    // Single job in this tab and the network identified nothing: new tiles on the page (`known`
+    // was read before Generate was pressed, so anything newer is this prompt's).
     if (!byId.size && !c.parallel)
-      for (const m of domMedia()) if (!known.has(m.mediaId) && !baseDom.has(m.mediaId) && !claimed.has(m.mediaId)) take(m);
+      for (const m of domMedia()) {
+        if (known.has(m.mediaId) || claimed.has(m.mediaId)) continue;
+        // a finished video tile shows a poster image until it plays: trust the job's kind and
+        // leave the URL empty, so the file is fetched through Flow's own download menu
+        if (c.kind === 'video' && m.kind !== 'video') take({ mediaId: m.mediaId, url: '', kind: 'video' });
+        else take(m);
+      }
     const all = [...byId.values()];
     const sameKind = all.filter((m) => m.kind === c.kind);
     return (sameKind.length ? sameKind : c.kind === 'image' ? all : []).slice(0, c.expect);

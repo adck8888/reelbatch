@@ -428,7 +428,7 @@ interface Step {
 
 async function processRow(c: Ctl, row: Row, tabId: number, sharing: boolean) {
   const rr = rowRun(row.id);
-  Object.assign(rr, { status: 'waiting', attempts: 0, results: [], error: undefined, cost: 0, startedAt: Date.now(), finishedAt: undefined });
+  Object.assign(rr, { status: 'waiting', attempts: 0, results: [], error: undefined, retrying: false, cost: 0, startedAt: Date.now(), finishedAt: undefined });
   save();
 
   const s = effectiveSettings(c.queue.defaults, row.overrides);
@@ -566,7 +566,13 @@ async function runStep(c: Ctl, row: Row, rr: RowRun, step: Step, tabId: number, 
     rr.attempts++;
     const sent = { value: false };
     try {
-      return await generate(c, rr, step, tabId, sharing, sent);
+      const outs = await generate(c, rr, step, tabId, sharing, sent);
+      // a retried attempt that worked: the earlier notice is history
+      if (rr.retrying) {
+        rr.retrying = false;
+        if (!rr.error?.startsWith('Flow returned')) rr.error = undefined;
+      }
+      return outs;
     } catch (e) {
       everSent ||= sent.value;
       if (isAbort(e)) {
@@ -606,7 +612,8 @@ async function runStep(c: Ctl, row: Row, rr: RowRun, step: Step, tabId: number, 
           throw new Error(msg);
         case 'retry':
           if (attempt < retries) {
-            rr.error = `${msg} — retrying`;
+            rr.error = msg;
+            rr.retrying = true;
             save();
             try {
               await sleep(Math.min(60_000, 4000 * 2 ** attempt) * rand(0.8, 1.3), c.abort.signal);
@@ -627,6 +634,7 @@ async function runStep(c: Ctl, row: Row, rr: RowRun, step: Step, tabId: number, 
 function requeue(c: Ctl, row: Row, rr: RowRun) {
   rr.status = 'queued';
   rr.error = undefined;
+  rr.retrying = false;
   c.pending.unshift(row);
   save();
 }
@@ -868,7 +876,8 @@ async function handleOutputs(c: Ctl, row: Row, rr: RowRun, step: Step, outs: Out
 
 async function save1(s: GenSettings, o: Out, blob: Blob | undefined, base: string, tabId: number, quality: string): Promise<Saved> {
   const original = quality === '1k' || quality === '720p';
-  if (s.engine === 'flow' && !original && o.mediaId && tabId >= 0) {
+  // the menu is also the only way to a result whose URL was never seen (a video found on the page)
+  if (s.engine === 'flow' && (!original || (!blob && !o.url)) && o.mediaId && tabId >= 0) {
     try {
       const id = await serialMenuDownload(async () => {
         const exp = expectFlowDownload(base);
@@ -883,6 +892,7 @@ async function save1(s: GenSettings, o: Out, blob: Blob | undefined, base: strin
       });
       return await waitComplete(id);
     } catch (e) {
+      if (!blob && !o.url) throw e;
       await log('warn', `Upscaled download unavailable (${errText(e)}); saving the original`);
     }
   }

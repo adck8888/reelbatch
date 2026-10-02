@@ -418,5 +418,6 @@
   "{n} images have no prompt line and will be skipped": "{n} ảnh không có dòng prompt và sẽ bị bỏ qua",
   "{n} of {max}": "{n}/{max}",
   "{n} prompts a day": "{n} prompt mỗi ngày",
-  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "Dùng thử miễn phí {n} ngày, không cần thẻ. Hủy gói tháng bất cứ lúc nào."
+  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "Dùng thử miễn phí {n} ngày, không cần thẻ. Hủy gói tháng bất cứ lúc nào.",
+  "Retrying: {error}": "Đang thử lại: {error}"
 }

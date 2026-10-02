@@ -418,5 +418,6 @@
   "{n} images have no prompt line and will be skipped": "{n} इमेज की कोई प्रॉम्प्ट लाइन नहीं है, उन्हें छोड़ दिया जाएगा",
   "{n} of {max}": "{max} में से {n}",
   "{n} prompts a day": "रोज़ {n} प्रॉम्प्ट",
-  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "{n} दिन का फ़्री ट्रायल, कार्ड की ज़रूरत नहीं। मासिक प्लान कभी भी रद्द करें।"
+  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "{n} दिन का फ़्री ट्रायल, कार्ड की ज़रूरत नहीं। मासिक प्लान कभी भी रद्द करें।",
+  "Retrying: {error}": "पुनः प्रयास: {error}"
 }

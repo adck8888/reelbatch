@@ -375,7 +375,7 @@ function RowItem(p: {
           {unknown.length > 0 && <span class="tag warn" title={t('Add these characters in the Characters tab')}>@{unknown.join(', @')}?</span>}
           {rr?.error && (
             <span
-              class={`err ${status === 'done' ? 'soft' : ''} ${errOpen ? 'open' : ''}`}
+              class={`err ${status === 'done' || rr.retrying ? 'soft' : ''} ${errOpen ? 'open' : ''}`}
               title={errOpen ? t('Click to collapse') : rr.error}
               role="button"
               tabIndex={0}
@@ -383,7 +383,7 @@ function RowItem(p: {
               onClick={() => setErrOpen(!errOpen)}
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setErrOpen(!errOpen))}
             >
-              {rr.error}
+              {rr.retrying ? t('Retrying: {error}', { error: rr.error }) : rr.error}
             </span>
           )}
           {rr?.results.map((res, i) => (

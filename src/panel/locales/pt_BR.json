@@ -418,5 +418,6 @@
   "{n} images have no prompt line and will be skipped": "{n} imagens não têm linha de prompt e serão ignoradas",
   "{n} of {max}": "{n} de {max}",
   "{n} prompts a day": "{n} prompts por dia",
-  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "Teste grátis de {n} dias, sem cartão. Cancele o plano mensal quando quiser."
+  "{n}-day free trial, no card needed. Cancel the monthly plan any time.": "Teste grátis de {n} dias, sem cartão. Cancele o plano mensal quando quiser.",
+  "Retrying: {error}": "Tentando novamente: {error}"
 }
