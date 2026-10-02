@@ -166,7 +166,7 @@ function onRpc(m: HookMessage) {
     return;
   }
   const media = extractMedia(m.body, cfg.mediaUrl);
-  const ctx = media.length && m.body.length < 400_000 ? simplify(m.body) : '';
+  const ctx = media.length && m.body.length < 400_000 ? simplify(m.body).slice(0, 20_000) : '';
   for (const r of media) {
     const prev = seen.get(r.mediaId);
     if (!prev) seen.set(r.mediaId, { ...r, t: m.t, rpc: m.rpcids, req, ctx });
@@ -577,7 +577,7 @@ async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchO
     }
     // Single job in this tab and the network identified nothing: new tiles on the page (`known`
     // was read before Generate was pressed, so anything newer is this prompt's).
-    if (!byId.size && !c.parallel)
+    if (![...byId.values()].some((m) => m.kind === c.kind) && !c.parallel)
       for (const m of domMedia()) {
         if (known.has(m.mediaId) || claimed.has(m.mediaId) || tileRendering(m.mediaId)) continue;
         // a finished video tile shows a poster image until it plays: trust the job's kind and
@@ -606,7 +606,7 @@ async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchO
     const alert = alertEls()
       .filter((el) => !baseAlerts.has(el))
       .map((el) => norm(el.textContent))
-      .find((t) => (classify(t) !== 'error' ? true : !c.parallel && rx('failed').test(t)));
+      .find((t) => (c.parallel ? mine(simplify(t)) : classify(t) !== 'error' || rx('failed').test(t)));
     if (alert) {
       const reason = classify(alert);
       if (reason !== 'error' || !res.length) return done({ ok: false, reason, message: alert.slice(0, 200), results: res });

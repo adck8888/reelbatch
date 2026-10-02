@@ -51,6 +51,8 @@ interface Ctl {
   nextSlot: Map<number, number>;
   /** Last output of a row, kept for chaining into the next row (image or last video frame). */
   chainOut: Map<string, Blob>;
+  /** Generated stills of image→video rows whose video step is still owed (paused, re-queued). */
+  stills: Map<string, Blob>;
   failsInRow: number;
   unusual: number;
   keepAlive?: ReturnType<typeof setInterval>;
@@ -178,8 +180,19 @@ function motionSettings(img: GenSettings): GenSettings {
 // Start / pause / resume / stop
 // ---------------------------------------------------------------------------
 
+let starting = false;
+
 export async function start(queueId: string, scope: RunScope, opts: { continuing?: boolean } = {}) {
-  if (ctl) throw new Error('A run is already in progress');
+  if (ctl || starting) throw new Error('A run is already in progress');
+  starting = true;
+  try {
+    await start1(queueId, scope, opts);
+  } finally {
+    starting = false;
+  }
+}
+
+async function start1(queueId: string, scope: RunScope, opts: { continuing?: boolean }) {
   const q = await getQueue(queueId);
   if (!q) throw new Error('Queue not found');
   const settings = await get('settings');
@@ -214,7 +227,8 @@ export async function start(queueId: string, scope: RunScope, opts: { continuing
     scope,
     startedAt: keep && prev.startedAt ? prev.startedAt : Date.now(),
     spent: keep ? prev.spent : { credits: 0, usd: 0 },
-    rows: keep ? prev.rows : {}
+    // earlier results of the same queue stay on record: "Not finished" must not run them again
+    rows: keep || prev.queueId === q.id ? prev.rows : {}
   };
   for (const r of rows) state.rows[r.id] = { status: 'queued', attempts: 0, results: [] };
   await flush();
@@ -230,6 +244,7 @@ export async function start(queueId: string, scope: RunScope, opts: { continuing
     tabs,
     nextSlot: new Map(),
     chainOut: new Map(),
+    stills: new Map(),
     failsInRow: 0,
     unusual: 0,
     // An extension API call every 20 s keeps the service worker alive during long renders.
@@ -276,7 +291,11 @@ export async function resume() {
       c.settings = await get('settings');
       if (c.tabs.length) {
         const open = new Set((await flowTabs()).map((t) => t.id!));
-        if (c.tabs.some((id) => !open.has(id))) c.tabs = await pickTabs(c.settings, c.pro);
+        if (c.tabs.some((id) => !open.has(id))) {
+          const old = c.tabs;
+          c.tabs = await pickTabs(c.settings, c.pro);
+          await releaseTabs(old.filter((id) => !c.tabs.includes(id)));
+        }
       }
       c.failsInRow = 0;
       c.unusual = state.status === 'cooldown' ? c.unusual : 0;
@@ -428,7 +447,17 @@ interface Step {
 
 async function processRow(c: Ctl, row: Row, tabId: number, sharing: boolean) {
   const rr = rowRun(row.id);
-  Object.assign(rr, { status: 'waiting', attempts: 0, results: [], error: undefined, retrying: false, cost: 0, startedAt: Date.now(), finishedAt: undefined });
+  const resumingMotion = c.stills.has(row.id);
+  Object.assign(rr, {
+    status: 'waiting',
+    attempts: 0,
+    results: resumingMotion ? rr.results : [],
+    error: undefined,
+    retrying: false,
+    cost: resumingMotion ? rr.cost : 0,
+    startedAt: resumingMotion ? rr.startedAt : Date.now(),
+    finishedAt: undefined
+  });
   save();
 
   const s = effectiveSettings(c.queue.defaults, row.overrides);
@@ -458,11 +487,24 @@ async function processRow(c: Ctl, row: Row, tabId: number, sharing: boolean) {
   if (settings.kind === 'video' && settings.videoMode === 'text' && refs.length)
     throw new Error(`${model.label} cannot use reference images in Flow: remove them or pick a model with Ingredients`);
   const first: Step = { settings, prompt, refs, startFrame, endFrame, label: '' };
-  const outs = await runStep(c, row, rr, first, tabId, sharing);
-  if (!outs) return; // row was re-queued or the run paused
-  const { still } = await handleOutputs(c, row, rr, first, outs, tabId);
+  // the still of an image->video row whose video step was paused earlier: do not pay for it again
+  let still = c.stills.get(row.id);
+  if (!still) {
+    const outs = await runStep(c, row, rr, first, tabId, sharing);
+    if (!outs) return; // row was re-queued or the run paused
+    still = (await handleOutputs(c, row, rr, first, outs, tabId)).still;
+    if (!outs.length) still = undefined;
+    if (!hasMotion(row, s) || !outs.length) {
+      rr.status = 'done';
+      rr.finishedAt = Date.now();
+      c.failsInRow = 0;
+      save();
+      return;
+    }
+    if (still) c.stills.set(row.id, still);
+  }
 
-  if (hasMotion(row, s) && outs.length) {
+  {
     if (!still) throw new Error('Image→video: the generated still could not be read back');
     const vs = motionSettings(s);
     const motion = resolveMentions(row.motionPrompt!.trim(), c.chars).prompt;
@@ -470,6 +512,7 @@ async function processRow(c: Ctl, row: Row, tabId: number, sharing: boolean) {
     const vouts = await runStep(c, row, rr, step, tabId, sharing);
     if (!vouts) return;
     await handleOutputs(c, row, rr, step, vouts, tabId);
+    c.stills.delete(row.id);
   }
 
   rr.status = 'done';
@@ -510,8 +553,10 @@ function classify(e: unknown, sent: boolean): { action: Action; msg: string; coo
       case 'credits':
         return { action: 'pause', msg: `Out of Flow credits: ${msg}` };
       case 'unusual':
+        if (e.phase === 'after') return { action: 'fail', msg: `Flow reported unusual activity: ${msg}. The result may still appear in your Flow project — check there before using Retry failed.` };
         return { action: 'cooldown', msg: `Flow reported unusual activity: ${msg}` };
       case 'limit':
+        if (e.phase === 'after') return { action: 'fail', msg: `Flow rate limit: ${msg}. The result may still appear in your Flow project — check there before using Retry failed.` };
         return { action: 'cooldown', msg: `Flow rate limit: ${msg}`, cooldownMin: 3 };
       case 'budget':
         return { action: 'requeue', msg };
@@ -728,8 +773,10 @@ async function generate(c: Ctl, rr: RowRun, step: Step, tabId: number, sharing: 
       if (r.partial) rr.error = `Flow returned ${r.results.length} of ${s.count}`;
       return r.results.map((x) => ({ kind: x.kind, url: x.url, mediaId: x.mediaId }));
     } catch (e) {
-      // credits count once Flow accepted the prompt and something may have rendered (or still will)
-      const spent = sent.value && (isAbort(e) || (e instanceof FlowError && (e.results.length > 0 || e.reason === 'timeout')));
+      // credits count once Flow accepted the prompt and something may have rendered (or still will);
+      // a Generate press that could not be confirmed is treated as accepted
+      if (e instanceof FlowError && e.phase === 'unconfirmed') sent.value = true;
+      const spent = sent.value && (isAbort(e) || (e instanceof FlowError && (e.results.length > 0 || e.reason === 'timeout' || e.phase === 'unconfirmed')));
       if (reserved && !spent) refund('flow', reserved);
       else if (reserved) rr.cost = (rr.cost ?? 0) + reserved;
       throw e;

@@ -33,9 +33,7 @@ const ours = (r: LicenseResponse) => r.meta?.store_id === PRO.storeId && PRO.pro
 export async function activate(rawKey: string) {
   const key = rawKey.trim();
   if (!/^[\w-]{16,}$/.test(key)) throw new Error('That does not look like a licence key.');
-  // activating again (new key or the same one) frees this browser's previous activation slot
   const old = await get('license');
-  if (old.key && old.instanceId) await call('deactivate', { license_key: old.key, instance_id: old.instanceId }).catch(() => {});
   let r: LicenseResponse;
   try {
     r = await call('activate', { license_key: key, instance_name: `Chrome ${navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] ?? ''}`.trim() });
@@ -47,6 +45,9 @@ export async function activate(rawKey: string) {
     await call('deactivate', { license_key: key, instance_id: r.instance.id }).catch(() => {});
     throw new Error('This licence key is for a different product.');
   }
+  // the new key is accepted: free this browser's previous activation slot
+  if (old.key && old.instanceId && !(old.key === key && old.instanceId === r.instance.id))
+    await call('deactivate', { license_key: old.key, instance_id: old.instanceId }).catch(() => {});
   const now = Date.now();
   await update('license', (l) => ({
     ...l,
@@ -91,5 +92,11 @@ export async function refresh(force = false) {
 }
 
 export async function startTrial() {
-  await update('license', (l) => (l.trialStartedAt ? l : { ...l, trialStartedAt: Date.now() }));
+  // the earliest start wins, and it is mirrored in sync storage so a reinstall does not restart the trial
+  const synced = await chrome.storage.sync.get('trialStartedAt').then((v) => v.trialStartedAt as number | undefined).catch(() => undefined);
+  const l = await update('license', (l) => {
+    const at = Math.min(l.trialStartedAt ?? Infinity, synced ?? Infinity);
+    return { ...l, trialStartedAt: Number.isFinite(at) ? at : Date.now() };
+  });
+  await chrome.storage.sync.set({ trialStartedAt: l.trialStartedAt }).catch(() => {});
 }

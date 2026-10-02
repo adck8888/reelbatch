@@ -70,11 +70,20 @@ export async function set<K extends keyof StoreShape>(key: K, value: StoreShape[
   await chrome.storage.local.set({ [key]: value });
 }
 
-export async function update<K extends keyof StoreShape>(key: K, fn: (v: StoreShape[K]) => StoreShape[K] | void) {
-  const cur = await get(key);
-  const next = fn(cur);
-  await set(key, (next === undefined ? cur : next) as StoreShape[K]);
-  return (next === undefined ? cur : next) as StoreShape[K];
+const chains = new Map<string, Promise<unknown>>();
+
+/** Read-modify-write; calls on the same key run one after another so none is lost. */
+export function update<K extends keyof StoreShape>(key: K, fn: (v: StoreShape[K]) => StoreShape[K] | void): Promise<StoreShape[K]> {
+  const run = async () => {
+    const cur = await get(key);
+    const next = fn(cur);
+    await set(key, (next === undefined ? cur : next) as StoreShape[K]);
+    return (next === undefined ? cur : next) as StoreShape[K];
+  };
+  const prev = chains.get(key) ?? Promise.resolve();
+  const p = prev.then(run, run);
+  chains.set(key, p.catch(() => {}));
+  return p;
 }
 
 /** Subscribe to one key; returns an unsubscribe function. */

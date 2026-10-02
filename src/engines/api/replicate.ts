@@ -178,7 +178,14 @@ export async function runReplicate(job: ApiJob): Promise<ApiOutput[]> {
         cancel();
         throw new ApiError('timeout', `Replicate did not finish within 20 minutes (prediction ${p.id})`, false, { submitted: true });
       }
-      const r = await fetch(p.urls?.get ?? `${BASE}/predictions/${p.id}`, { headers: auth, signal: job.signal });
+      let r: Response;
+      try {
+        r = await fetch(p.urls?.get ?? `${BASE}/predictions/${p.id}`, { headers: auth, signal: job.signal });
+      } catch (e) {
+        // offline for a moment: the prediction keeps running on Replicate's side
+        if (job.signal.aborted) throw e;
+        continue;
+      }
       if (!r.ok) {
         const err = await readError(r, 'Replicate');
         if (!err.retryable) throw err;

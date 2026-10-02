@@ -74,6 +74,7 @@ export async function waitForTabLoad(tabId: number, timeoutMs = 45_000) {
     if (t.status === 'complete') return;
     await sleep(400);
   }
+  throw new FlowError('setup', 'The Flow tab did not finish loading. Reload it and run again.');
 }
 
 export async function health(tabId?: number): Promise<HealthReport> {
@@ -217,17 +218,23 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
     // tile started rendering. Generate is pressed once only: pressing again could pay twice.
     let req = 0;
     let landed = false;
-    for (let i = 0; i < 25 && !(landed && req); i++) {
-      await sleep(400);
-      const [claim, t, snap] = await Promise.all([
-        req ? Promise.resolve({ id: req }) : sendTab<{ id: number }>(tabId, { type: 'claimRequest', since }),
-        sendTab<{ text: string }>(tabId, { type: 'editorText' }),
-        sendTab<FlowSnapshot>(tabId, { type: 'snapshot' })
-      ]);
-      req = claim.id;
-      landed ||= !!req || !t.text || snap.rendering > before.rendering || snap.mediaIds.length > before.mediaIds.length;
-      // image requests are recognised by id; video ones may not be, so a visible sign is enough
-      if (landed && !req && i >= 4) break;
+    try {
+      for (let i = 0; i < 25 && !(landed && req); i++) {
+        await sleep(400);
+        const [claim, t, snap] = await Promise.all([
+          req ? Promise.resolve({ id: req }) : sendTab<{ id: number }>(tabId, { type: 'claimRequest', since }),
+          sendTab<{ text: string }>(tabId, { type: 'editorText' }),
+          sendTab<FlowSnapshot>(tabId, { type: 'snapshot' })
+        ]);
+        req = claim.id;
+        landed ||= !!req || !t.text || snap.rendering > before.rendering || snap.mediaIds.length > before.mediaIds.length;
+        // image requests are recognised by id; video ones may not be, so a visible sign is enough
+        if (landed && !req && i >= 4) break;
+      }
+    } catch (e) {
+      // Generate was already pressed: whatever went wrong now, pressing it again could pay twice
+      if (job.signal.aborted) throw e;
+      throw new FlowError('error', `Generate was pressed but the Flow tab stopped answering (${e instanceof Error ? e.message : e}). Check the Flow tab before using Retry failed.`, [], 'unconfirmed');
     }
     if (!landed)
       throw new FlowError(
@@ -243,6 +250,8 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
   const timeoutMs = (settings.kind === 'video' ? cfg.timing.videoTimeoutSec : cfg.timing.imageTimeoutSec) * 1000;
   const watchId = crypto.randomUUID();
   const onAbort = () => void sendTab(tabId, { type: 'cancelWatch', id: watchId }, 5000).catch(() => {});
+  // Stop pressed while the submission was being confirmed: nothing to wait for
+  job.signal.throwIfAborted();
   job.signal.addEventListener('abort', onAbort, { once: true });
   let outcome: WatchOutcome;
   try {
@@ -276,7 +285,7 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
 async function attach(tabId: number, slot: 'refs' | 'start' | 'end', blobs: Blob[]) {
   const files = await toFiles(blobs);
   // the content script waits up to 90 s for Flow to process an upload, plus the picker steps
-  const r = await sendTab<{ ok: boolean; error?: string }>(tabId, { type: 'attach', slot, files }, 150_000);
+  const r = await sendTab<{ ok: boolean; error?: string }>(tabId, { type: 'attach', slot, files }, 90_000 * Math.max(1, files.length) + 60_000);
   if (!r.ok) throw new FlowError('setup', r.error ?? 'Could not attach images in Flow');
 }
 

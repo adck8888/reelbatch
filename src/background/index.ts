@@ -40,8 +40,7 @@ async function rearmSchedule() {
 }
 
 // The worker may have been killed mid-run; mark that run as interrupted and drop stale debugger sessions.
-void runner.restore();
-void detachAll();
+const ready = Promise.all([runner.restore(), detachAll()]).catch(() => {});
 void license.refresh();
 
 chrome.alarms.onAlarm.addListener(async (a) => {
@@ -84,6 +83,7 @@ async function needPro(feature: string) {
 }
 
 async function handle(m: PanelRequest | { type: 'flow:config' }): Promise<unknown> {
+  await ready;
   switch (m.type) {
     case 'flow:config':
       return flowConfig();

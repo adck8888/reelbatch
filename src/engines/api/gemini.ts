@@ -113,7 +113,15 @@ async function veoResult(job: ApiJob, name: string): Promise<ApiOutput[]> {
   for (;;) {
     await sleep(delay, job.signal);
     delay = Math.min(15_000, delay + 2000);
-    const res = await fetch(`${BASE}/${name}`, { headers: headers(job.key), signal: job.signal });
+    let res: Response;
+    try {
+      res = await fetch(`${BASE}/${name}`, { headers: headers(job.key), signal: job.signal });
+    } catch (e) {
+      // offline for a moment: the job is still running on Google's side
+      if (job.signal.aborted) throw e;
+      if (Date.now() > deadline) throw timeout();
+      continue;
+    }
     if (!res.ok) {
       const err = await readError(res, 'Gemini');
       if (!err.retryable) throw err;
