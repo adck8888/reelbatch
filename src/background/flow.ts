@@ -110,8 +110,16 @@ async function withTabLock<T>(tabId: number, fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function toFiles(blobs: Blob[], prefix: string) {
-  return Promise.all(blobs.map(async (b, i) => ({ name: `${prefix}-${i + 1}.${b.type.split('/')[1] || 'png'}`, type: b.type || 'image/png', dataUrl: await blobToDataUrl(b) })));
+/** Files are named by content hash so an image reused across rows is uploaded to Flow only once. */
+async function toFiles(blobs: Blob[]) {
+  return Promise.all(
+    blobs.map(async (b) => {
+      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', await b.arrayBuffer()));
+      const id = [...hash.slice(0, 6)].map((x) => x.toString(16).padStart(2, '0')).join('');
+      const type = b.type || 'image/png';
+      return { name: `rb-${id}.${type.split('/')[1]?.replace('jpeg', 'jpg') || 'png'}`, type, dataUrl: await blobToDataUrl(b) };
+    })
+  );
 }
 
 const simplify = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase();
@@ -125,6 +133,7 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
 
   const submitted = await withTabLock(tabId, async () => {
     job.signal.throwIfAborted();
+    await dbg.attach(tabId);
     await sendTab(tabId, { type: 'dismiss' });
 
     const prep = await sendTab<PrepareOutcome>(tabId, { type: 'prepare', settings, target: model.target }, 30_000);
@@ -145,7 +154,6 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
     if (before.alerts.some((a) => new RegExp(cfg.text.unusual, 'i').test(a))) throw new FlowError('unusual', before.alerts[0]);
 
     job.onStatus('sending');
-    await dbg.attach(tabId);
     const focus = await sendTab<{ ok: boolean; error?: string }>(tabId, { type: 'focusEditor' });
     if (!focus.ok) throw new FlowError('setup', focus.error ?? 'Prompt box not found');
     await dbg.click(tabId, '[data-rb="editor"]');
@@ -196,7 +204,7 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
 }
 
 async function attach(tabId: number, slot: 'refs' | 'start' | 'end', blobs: Blob[]) {
-  const files = await toFiles(blobs, slot);
+  const files = await toFiles(blobs);
   const r = await sendTab<{ ok: boolean; error?: string }>(tabId, { type: 'attach', slot, files }, 60_000);
   if (!r.ok) throw new FlowError('setup', r.error ?? 'Could not attach images in Flow');
 }

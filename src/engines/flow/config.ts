@@ -1,8 +1,6 @@
 import bundled from '../../../config/flow.json';
 
-export type FlowConfig = typeof bundled & {
-  selectors: typeof bundled.selectors & Partial<Record<'frameStart' | 'frameEnd' | 'uploadItem', string>>;
-};
+export type FlowConfig = typeof bundled;
 
 export const BUNDLED_CONFIG = bundled as FlowConfig;
 

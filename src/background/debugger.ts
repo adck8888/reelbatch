@@ -25,6 +25,10 @@ export async function attach(tabId: number) {
     throw new Error(`Chrome refused input control for the Flow tab: ${m}`);
   }
   attached.add(tabId);
+  // A Flow tab in the background is throttled until its timers nearly stop; keep it running as
+  // if it were focused for as long as the run lasts.
+  await cmd(tabId, 'Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
+  await cmd(tabId, 'Page.setWebLifecycleState', { state: 'active' }).catch(() => {});
 }
 
 export async function detach(tabId: number) {

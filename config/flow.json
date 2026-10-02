@@ -1,5 +1,5 @@
 {
-  "version": "2026.10.02-1",
+  "version": "2026.10.02-2",
   "minExtension": "1.0.0",
   "selectors": {
     "editor": "flow-rich-text-editor .ProseMirror, .prosemirror-editor .ProseMirror",
@@ -21,8 +21,16 @@
     "dropZone": "flow-base-prompt-box, flow-rich-text-editor",
     "alerts": "mat-snack-bar-container, .mat-mdc-snack-bar-container, [role=alert], .cdk-live-announcer-element, flow-toast, .toast",
     "dialogs": "mat-dialog-container, .mat-mdc-dialog-container, [role=dialog], [role=alertdialog]",
-    "attachmentChips": "flow-prompt-box-attachment, flow-ingredient-chip, .ingredient-chip, .attachment-chip",
-    "attachmentRemove": "button[aria-label*='emove'], button[aria-label*='дал'], button .material-symbols-outlined"
+    "attachmentChips": "flow-ingredient-chip",
+    "attachmentChipButton": "button.chip-container",
+    "frameSlot": "flow-ingredient-bar .frame-trigger",
+    "frameEmpty": "button.empty-chip",
+    "assetPicker": "flow-add-menu-popover-content",
+    "pickerUpload": "button.sidebar-upload-btn",
+    "pickerClose": "button.header-close-btn",
+    "assetItem": "button.asset-item",
+    "assetReady": "img.asset-thumbnail-image",
+    "addToPrompt": "button.detail-add-to-prompt-btn"
   },
   "icons": {
     "image": "image",

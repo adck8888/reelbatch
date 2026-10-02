@@ -61,4 +61,28 @@
     }
     return res;
   };
+  // Flow uploads through a file input it creates and clicks. While the content script attaches
+  // reference images it sets data-rb-picker="capture": the native file dialog is skipped and the
+  // input is tagged so the content script can hand it the files instead.
+  const root = document.documentElement;
+  const capture = (input: HTMLInputElement) => {
+    if (input.type !== 'file' || root.dataset.rbPicker !== 'capture') return false;
+    if (!input.isConnected) {
+      input.style.display = 'none';
+      document.body.append(input);
+    }
+    input.dataset.rbPicker = '1';
+    return true;
+  };
+  const IP = HTMLInputElement.prototype;
+  const click = IP.click;
+  IP.click = function (this: HTMLInputElement) {
+    if (!capture(this)) click.call(this);
+  };
+  const showPicker = IP.showPicker;
+  if (showPicker) {
+    IP.showPicker = function (this: HTMLInputElement) {
+      if (!capture(this)) showPicker.call(this);
+    };
+  }
 })();

@@ -301,66 +301,101 @@ function dataUrlToFile(f: { name: string; type: string; dataUrl: string }) {
   return new File([buf], f.name, { type: f.type });
 }
 
-const attachmentCount = () => $$(cfg.selectors.attachmentChips).length + $$('flow-base-prompt-box img').length;
+// Flow adds images through its asset picker: upload into the project library, select the asset,
+// then "Add to prompt". In Frames mode the picker opens from the start/end slot instead of the
+// + button. Clicking a chip or a filled frame slot removes it.
 
-async function attach(slot: 'refs' | 'start' | 'end', files: { name: string; type: string; dataUrl: string }[]) {
-  const before = attachmentCount();
-  const list = files.map(dataUrlToFile);
-  const dt = new DataTransfer();
-  for (const f of list) dt.items.add(f);
+const chips = () => $$(cfg.selectors.attachmentChips).filter(visible);
+const frameSlot = (slot: 'start' | 'end') => $$(cfg.selectors.frameSlot)[slot === 'start' ? 0 : 1] ?? null;
+const slotFilled = (el: Element | null) => !!el && !$(cfg.selectors.frameEmpty, el);
+const picker = () => $(cfg.selectors.assetPicker);
+const assetNamed = (name: string) => $$(cfg.selectors.assetItem).find((b) => norm(b.textContent).includes(name));
+const assetReady = (b: Element) => {
+  const img = $<HTMLImageElement>(cfg.selectors.assetReady, b);
+  return !!img && img.complete && img.naturalWidth > 0 && !b.querySelector('[role=progressbar], mat-progress-spinner, mat-spinner');
+};
 
-  // Frames mode: click the start/end slot first if the config knows it.
-  const slotSel = slot === 'start' ? cfg.selectors.frameStart : slot === 'end' ? cfg.selectors.frameEnd : undefined;
-  if (slotSel) {
-    const s = $(slotSel);
-    if (s) {
-      s.click();
-      await step();
+async function openPicker(slot: 'refs' | 'start' | 'end') {
+  await closeOverlays();
+  if (slot === 'refs') {
+    const add = $(cfg.selectors.addMenu);
+    if (!visible(add)) return null;
+    add.click();
+  } else {
+    const el = frameSlot(slot);
+    if (!el) return null;
+    if (slotFilled(el)) {
+      $<HTMLElement>('button', el)?.click();
+      await waitFor(() => !slotFilled(frameSlot(slot)), 3000);
     }
+    $<HTMLElement>('button', frameSlot(slot) ?? el)?.click();
   }
+  return waitFor(picker, 5000);
+}
 
-  // 1) a file input (Flow keeps one for its upload menu)
-  let input = $$<HTMLInputElement>(cfg.selectors.fileInput).find((i) => !i.disabled);
-  if (!input && !slotSel) {
-    $(cfg.selectors.addMenu)?.click();
-    await step();
-    const upload = $$<HTMLElement>(cfg.selectors.uploadItem ?? cfg.selectors.menuItem).find((i) => /upload|file_upload|add_photo|image|photo/.test(iconOf(i)));
-    upload?.click();
-    await step();
-    input = $$<HTMLInputElement>(cfg.selectors.fileInput).find((i) => !i.disabled);
-  }
-  if (input) {
+/** Upload through the picker's own file input; the page hook keeps the native dialog closed. */
+async function upload(files: File[]) {
+  const root = document.documentElement;
+  $$('input[data-rb-picker]').forEach((i) => i.removeAttribute('data-rb-picker'));
+  root.dataset.rbPicker = 'capture';
+  try {
+    $(cfg.selectors.pickerUpload)?.click();
+    const input = await waitFor(() => $<HTMLInputElement>('input[type=file][data-rb-picker]'), 4000);
+    if (!input) return false;
+    const dt = new DataTransfer();
+    for (const f of files) dt.items.add(f);
     input.files = dt.files;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    if (await waitFor(() => attachmentCount() > before, 15000)) {
-      await closeOverlays();
-      return { ok: true, count: attachmentCount() - before };
-    }
+  } finally {
+    delete root.dataset.rbPicker;
   }
+  return !!(await waitFor(() => files.every((f) => { const b = assetNamed(f.name); return !!b && assetReady(b); }), 90_000, 400));
+}
 
-  // 2) drop onto the prompt box
-  await closeOverlays();
-  const zone = $(cfg.selectors.dropZone);
-  if (zone) {
-    const r = zone.getBoundingClientRect();
-    const opts = { bubbles: true, cancelable: true, dataTransfer: dt, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
-    for (const t of ['dragenter', 'dragover', 'drop']) zone.dispatchEvent(new DragEvent(t, opts));
-    if (await waitFor(() => attachmentCount() > before, 15000)) return { ok: true, count: attachmentCount() - before };
+async function attach(slot: 'refs' | 'start' | 'end', files: { name: string; type: string; dataUrl: string }[]) {
+  const list = files.map(dataUrlToFile);
+  const fail = async (error: string) => (await closeOverlays(), { ok: false, error });
+  if (!(await openPicker(slot))) return fail(slot === 'refs' ? 'Flow’s add-image button not found' : 'Flow’s frame slots not found — is Frames mode on?');
+
+  // the same reference used across rows has the same content-hash name, so it is uploaded once
+  const missing = list.filter((f) => !assetNamed(f.name));
+  if (missing.length && !(await upload(missing))) return fail('Flow did not accept the image upload');
+
+  for (const [i, f] of list.entries()) {
+    if (i > 0 && !(await openPicker(slot))) return fail('Flow’s image picker did not open');
+    const before = chips().length;
+    const item = await waitFor(() => assetNamed(f.name), 5000);
+    if (!item) return fail('Uploaded image not found in Flow’s library');
+    item.click();
+    await step();
+    const add = await waitFor(() => $<HTMLElement>(cfg.selectors.addToPrompt), 3000);
+    if (!add) return fail('Flow’s “Add to prompt” button not found');
+    add.click();
+    const added = await waitFor(() => (slot === 'refs' ? chips().length > before : slotFilled(frameSlot(slot))), 8000);
+    if (!added) return fail('Flow did not add the image to the prompt');
+    await step();
   }
-  return { ok: false, error: 'Flow did not accept the reference image upload' };
+  await closeOverlays();
+  return { ok: true, count: list.length };
 }
 
 async function clearAttachments() {
+  await closeOverlays();
   for (let i = 0; i < 20; i++) {
-    const chip = $$(cfg.selectors.attachmentChips).find(visible);
+    const chip = chips()[0];
     if (!chip) break;
-    const btn = $$<HTMLElement>('button', chip).find((b) => /close|cancel|delete|clear/.test(iconOf(b)));
-    if (!btn) break;
-    btn.click();
+    $<HTMLElement>(cfg.selectors.attachmentChipButton, chip)?.click();
     await step();
   }
-  return { ok: true, left: $$(cfg.selectors.attachmentChips).length };
+  for (const slot of ['start', 'end'] as const) {
+    const el = frameSlot(slot);
+    if (slotFilled(el)) {
+      $<HTMLElement>('button', el!)?.click();
+      await step();
+    }
+  }
+  return { ok: true, left: chips().length + (['start', 'end'] as const).filter((x) => slotFilled(frameSlot(x))).length };
 }
 
 // ---------------- waiting for results ----------------
