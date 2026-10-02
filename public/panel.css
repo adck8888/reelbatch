@@ -220,6 +220,12 @@ button.chip:hover { color: var(--text); }
 .run-chip { font: inherit; font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 0; background: var(--ok-2); color: var(--ok); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
 .run-chip.paused, .run-chip.cooldown { background: var(--warn-2); color: var(--warn); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.2s infinite; }
+/* next to the run chip the Flow pill uses its short label */
+@media (max-width: 599px) {
+  .top:has(.run-chip) .flow-pill:not(.long) .flow-pill-text { display: none; }
+  .top:has(.run-chip) .flow-pill .flow-pill-text.short { display: inline; }
+}
+.flow-pill.long { white-space: normal; text-align: left; }
 /* the run chip needs the room the product name takes in narrow panels */
 @media (max-width: 439px) {
   .top:has(.run-chip) .brand b { display: none; }
