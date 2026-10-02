@@ -373,8 +373,11 @@ function mark(el: Element, name: string) {
 }
 
 async function focusEditor() {
-  // an open settings menu would swallow the click meant for the prompt box
+  // an open settings menu would swallow the click meant for the prompt box; once it closes, the
+  // menu hands focus back to its button, so wait for that before focusing the box
+  const open = $$('.cdk-overlay-pane').some((p) => p.childElementCount);
   await closeOverlays();
+  if (open) await sleep(500);
   const ed = $(cfg.selectors.editor);
   if (!visible(ed)) return { ok: false, error: 'Prompt box not found in Flow' };
   mark(ed, 'editor');
@@ -674,13 +677,31 @@ function health(): HealthReport {
   if (document.visibilityState === 'hidden')
     check('visible', true, 'This Flow tab is in the background. Keep it in its own window so Chrome does not slow it down.');
   if (recentRpcs.length) check('requests', true, recentRpcs.slice(-25).join(' '));
+  if (freezes.length) check('freezes', true, freezes.join(' | '));
   const signedIn = !/accounts\.google\.com/.test(location.href) && !!document.querySelector('img[src*="googleusercontent"], [aria-label*="@"]');
   return { ok: items.every((i) => i.ok), url: location.href, signedIn, items, configVersion: cfg.version };
 }
 
 // ---------------- dispatcher ----------------
 
+// Freezes of the Flow page (main thread blocked > 1 s) with what Reelbatch was doing, for "Copy report".
+const freezes: string[] = [];
+let lastCmd = '';
+if (ACTIVE)
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries())
+        if (e.duration > 1000) {
+          freezes.push(`${new Date(performance.timeOrigin + e.startTime).toISOString().slice(11, 19)} ${Math.round(e.duration)}ms after ${lastCmd || '-'}`);
+          trim(freezes, 20);
+        }
+    }).observe({ type: 'longtask', buffered: true });
+  } catch {
+    /* longtask timing is not available */
+  }
+
 if (ACTIVE) chrome.runtime.onMessage.addListener((msg: FlowCommand | { type: 'config'; config: FlowConfig }, _sender, reply) => {
+  if (msg.type !== 'ping' && msg.type !== 'health') lastCmd = `${msg.type}@${new Date().toISOString().slice(11, 19)}`;
   const run = async (): Promise<unknown> => {
     switch (msg.type) {
       case 'config':

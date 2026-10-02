@@ -178,6 +178,7 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
     // Type only once the focus is verified inside the prompt box: keys sent elsewhere act on the page.
     const want = simplify(job.prompt);
     let ok = false;
+    let why = 'focus stayed outside the prompt box';
     for (let i = 0; i < 2 && !ok; i++) {
       const c = await sendTab<{ focused: boolean; text: string }>(tabId, { type: 'clearEditor' });
       if (!c.focused) {
@@ -190,8 +191,9 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
       await sleep(250);
       const typed = await sendTab<{ text: string }>(tabId, { type: 'editorText' });
       ok = simplify(typed.text) === want;
+      why = `left "${c.text.slice(0, 30)}", box shows "${typed.text.slice(0, 60)}"`;
     }
-    if (!ok) throw new FlowError('setup', 'Flow did not accept the typed prompt');
+    if (!ok) throw new FlowError('setup', `Flow did not accept the typed prompt (${why})`);
 
     const gen = await sendTab<{ ok: boolean; disabled?: boolean; error?: string }>(tabId, { type: 'markGenerate' });
     if (!gen.ok) throw new FlowError('setup', gen.error ?? 'Generate button not found');
