@@ -71,8 +71,14 @@ function iconOf(el: Element): string {
 }
 
 /** Visible text minus icon ligatures and emoji. */
+// icon fonts render their names as text ("volume_up"), glued to the label next to them
+const ICONS = 'mat-icon, .material-icons, .material-icons-outlined, [class*="material-symbols"], .google-symbols';
+
 function labelOf(el: Element): string {
-  return norm(el.textContent)
+  const c = el.cloneNode(true) as Element;
+  c.querySelectorAll(ICONS).forEach((n) => n.remove());
+  return norm(c.textContent)
+    .replace(/^(?:[a-z]+_)+[a-z]+(?=\p{Lu})/u, '')
     .split(' ')
     .filter((w) => !/^[a-z0-9]+(_[a-z0-9]+)+$/.test(w) && !/^(arrow_drop_down|volume_up|info|check)$/.test(w))
     .join(' ')
@@ -366,12 +372,34 @@ function mark(el: Element, name: string) {
   el.scrollIntoView({ block: 'center', inline: 'center' });
 }
 
-function focusEditor() {
+async function focusEditor() {
+  // an open settings menu would swallow the click meant for the prompt box
+  await closeOverlays();
   const ed = $(cfg.selectors.editor);
   if (!visible(ed)) return { ok: false, error: 'Prompt box not found in Flow' };
   mark(ed, 'editor');
   ed.focus();
   return { ok: true };
+}
+
+/**
+ * Empty the prompt box without keyboard shortcuts: Ctrl+A / Delete outside the box would select
+ * and delete the user's results in the grid. Reports whether keyboard focus is inside the box,
+ * because typed text goes wherever the focus is.
+ */
+function clearEditor() {
+  const ed = $<HTMLElement>(cfg.selectors.editor);
+  if (!ed) return { focused: false, text: '' };
+  const focused = !!document.activeElement && (ed === document.activeElement || ed.contains(document.activeElement));
+  if (focused && norm(ed.innerText)) {
+    const range = document.createRange();
+    range.selectNodeContents(ed);
+    const sel = getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    document.execCommand('delete');
+  }
+  return { focused, text: norm(ed.innerText) };
 }
 
 function editorText() {
@@ -668,6 +696,8 @@ if (ACTIVE) chrome.runtime.onMessage.addListener((msg: FlowCommand | { type: 'co
         return focusEditor();
       case 'editorText':
         return editorText();
+      case 'clearEditor':
+        return clearEditor();
       case 'markGenerate':
         return markGenerate();
       case 'snapshot':

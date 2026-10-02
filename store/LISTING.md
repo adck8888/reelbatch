@@ -48,7 +48,7 @@ Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of pro
 • 8 languages: English, Русский, Español, Português, Tiếng Việt, हिन्दी, Bahasa Indonesia, Türkçe
 
 ### Free and Pro
-**Free:** Google Flow, 50 prompts a day, one at a time, auto-download, TXT/CSV/DOCX import.
+**Free:** Google Flow, 30 prompts a day, one at a time, auto-download, TXT/CSV/DOCX import.
 **Pro ($9/month or $69 once):** unlimited prompts, parallel runs and several tabs, API engines, characters, chaining, image→video, upscaled downloads, scheduler, AI helper, Sheets/Excel/JSON import, ZIP export.
 A 7-day Pro trial is included and needs no card.
 

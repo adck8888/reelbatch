@@ -94,12 +94,6 @@ export async function key(tabId: number, name: keyof typeof KEYS, modifiers = 0)
   await cmd(tabId, 'Input.dispatchKeyEvent', { type: 'keyUp', modifiers, key: k.key, code: k.code, windowsVirtualKeyCode: k.keyCode });
 }
 
-export async function selectAllAndDelete(tabId: number) {
-  const mac = (await chrome.runtime.getPlatformInfo()).os === 'mac';
-  await key(tabId, 'a', mac ? 4 : 2);
-  await key(tabId, 'Backspace');
-}
-
 /** Type text as real input. Long text goes in chunks so Flow's editor keeps up. */
 export async function insertText(tabId: number, text: string) {
   // split by code points so an emoji or other surrogate pair is never cut in half

@@ -27,13 +27,25 @@ export function splitPrompts(text: string, mode: SplitMode = 'auto', delimiter =
   else {
     // auto: blank-line blocks when any block spans several lines, otherwise one prompt per line
     const blocks = src.split(/\n\s*\n/);
-    parts = blocks.length > 1 && blocks.some((b) => b.trim().includes('\n')) ? blocks : src.split('\n');
+    parts = blocks.length > 1 && blocks.some((b) => b.trim().includes('\n')) ? blocks : joinContinued(src.split('\n'));
   }
   return parts
     .map((p) => p.trim())
     .map((p) => (strip && !json ? stripPrefix(p) : p))
     .map((p) => (json ? p : p.replace(/\s*\n\s*/g, ' ')))
     .filter(Boolean);
+}
+
+/** A line ending in a comma or colon continues on the next one ("a lighthouse at sunset,\ncinematic"). */
+function joinContinued(lines: string[]) {
+  const out: string[] = [];
+  let open = false;
+  for (const l of lines) {
+    if (open && l.trim()) out[out.length - 1] += ` ${l.trim()}`;
+    else out.push(l);
+    open = /[,:;]\s*$/.test(out[out.length - 1] ?? '');
+  }
+  return out;
 }
 
 /** A pasted JSON array: strings are prompts, objects are kept whole (Veo-style JSON prompts) unless they carry a prompt field. */

@@ -175,11 +175,23 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
     const focus = await sendTab<{ ok: boolean; error?: string }>(tabId, { type: 'focusEditor' });
     if (!focus.ok) throw new FlowError('setup', focus.error ?? 'Prompt box not found');
     await dbg.click(tabId, '[data-rb="editor"]');
-    await dbg.selectAllAndDelete(tabId);
-    await dbg.insertText(tabId, job.prompt);
-    await sleep(250);
-    const typed = await sendTab<{ text: string }>(tabId, { type: 'editorText' });
-    if (!simplify(typed.text).startsWith(simplify(job.prompt).slice(0, 40))) throw new FlowError('setup', 'Flow did not accept the typed prompt');
+    // Type only once the focus is verified inside the prompt box: keys sent elsewhere act on the page.
+    const want = simplify(job.prompt);
+    let ok = false;
+    for (let i = 0; i < 2 && !ok; i++) {
+      const c = await sendTab<{ focused: boolean; text: string }>(tabId, { type: 'clearEditor' });
+      if (!c.focused) {
+        await sendTab(tabId, { type: 'focusEditor' });
+        await dbg.click(tabId, '[data-rb="editor"]');
+        continue;
+      }
+      // if Flow ignored the delete, the old text is still selected and typing replaces it
+      await dbg.insertText(tabId, job.prompt);
+      await sleep(250);
+      const typed = await sendTab<{ text: string }>(tabId, { type: 'editorText' });
+      ok = simplify(typed.text) === want;
+    }
+    if (!ok) throw new FlowError('setup', 'Flow did not accept the typed prompt');
 
     const gen = await sendTab<{ ok: boolean; disabled?: boolean; error?: string }>(tabId, { type: 'markGenerate' });
     if (!gen.ok) throw new FlowError('setup', gen.error ?? 'Generate button not found');

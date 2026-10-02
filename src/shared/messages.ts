@@ -53,6 +53,7 @@ export type FlowCommand =
   | { type: 'health' }
   | { type: 'prepare'; settings: GenSettings; target: string }
   | { type: 'focusEditor' }
+  | { type: 'clearEditor' }
   | { type: 'editorText' }
   | { type: 'markGenerate' }
   | { type: 'snapshot' }

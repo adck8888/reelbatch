@@ -12,7 +12,7 @@ export const PRO = {
   lifetimeUrl: 'https://adcktools.lemonsqueezy.com/checkout/buy/632428be-3613-4f8c-b79b-14187472707f?enabled=2195724',
   monthlyPrice: '$9/month',
   lifetimePrice: '$69 once',
-  freePerDay: 50,
+  freePerDay: 30,
   trialDays: 7
 };
 
