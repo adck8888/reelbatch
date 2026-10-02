@@ -68,7 +68,7 @@ function LicenseCard() {
       )}
       {p === 'trial' && (
         <div class="plan trial">
-          <b>{t('Pro trial')}</b> · {t('{n} days left', { n: trialLeft.value })}
+          <b>{t('Pro trial')}</b> {t('{n} days left', { n: trialLeft.value })}
         </div>
       )}
       {p === 'free' && (
