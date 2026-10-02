@@ -127,9 +127,17 @@ const POLICY_RE = /\b(?:UNSAFE|PROHIBITED|BLOCKLIST|RAI_[A-Z_]+|[A-Z_]*(?:POLICY
 const CREDITS_RE = /\b(?:RESOURCE_EXHAUSTED|INSUFFICIENT_CREDITS|OUT_OF_CREDITS|NOT_ENOUGH_[A-Z_]+)\b/;
 const LIMIT_RE = /\b(?:RATE_LIMIT[A-Z_]*|TOO_MANY_[A-Z_]+|QUOTA_[A-Z_]+)\b/;
 
+// Recent request ids with what they returned, for "Copy report" (maps new Flow requests, e.g. video).
+const recentRpcs: string[] = [];
+
 function onRpc(m: HookMessage) {
   const rpcs = (m.rpcids ?? '').split(',');
   if (rpcs.every((r) => cfg.rpc.ignore.includes(r))) return;
+  if (m.phase !== 'start') {
+    const kinds = [...new Set(extractMedia(m.body, cfg.mediaUrl).map((x) => x.kind))].join('+');
+    recentRpcs.push(`${m.rpcids}:${m.status}${kinds ? `:${kinds}` : ''}`);
+    trim(recentRpcs, 40);
+  }
   const generate = isGenerate(rpcs);
   const req = generate ? (m.id ?? 0) : 0;
   if (m.phase === 'start') {
@@ -637,6 +645,7 @@ function health(): HealthReport {
   check('hook', hook, hook ? undefined : 'Reload the Flow tab once so Reelbatch can observe results');
   if (document.visibilityState === 'hidden')
     check('visible', true, 'This Flow tab is in the background. Keep it in its own window so Chrome does not slow it down.');
+  if (recentRpcs.length) check('requests', true, recentRpcs.slice(-25).join(' '));
   const signedIn = !/accounts\.google\.com/.test(location.href) && !!document.querySelector('img[src*="googleusercontent"], [aria-label*="@"]');
   return { ok: items.every((i) => i.ok), url: location.href, signedIn, items, configVersion: cfg.version };
 }
