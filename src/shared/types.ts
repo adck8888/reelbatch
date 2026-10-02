@@ -131,6 +131,8 @@ export interface RunState {
   cooldownUntil?: number;
   message?: string;
   rows: Record<string, RowRun>;
+  /** Rows taking part in the current (or last) run; counters use only these. */
+  ids?: string[];
 }
 
 export interface Character {

@@ -548,5 +548,10 @@
   "Unsupported aspect \"{x}\" — the queue default is used": "Proporção \"{x}\" não suportada — o padrão da fila é usado",
   "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
   "Lifetime": "Vitalícia",
-  "Monthly": "Mensal"
+  "Monthly": "Mensal",
+  "Make it a video": "Transformar em vídeo",
+  "Make it an image": "Transformar em imagem",
+  "The text in the box above is not in the queue yet ({n} prompts).": "O texto da caixa ainda não está na fila ({n} prompts).",
+  "Add it": "Adicionar",
+  "Results stay in the Results tab": "Os resultados continuam na aba Resultados"
 }

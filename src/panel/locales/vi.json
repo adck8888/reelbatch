@@ -548,5 +548,10 @@
   "Unsupported aspect \"{x}\" — the queue default is used": "Tỷ lệ \"{x}\" không hỗ trợ — dùng mặc định của hàng đợi",
   "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
   "Lifetime": "Trọn đời",
-  "Monthly": "Hằng tháng"
+  "Monthly": "Hằng tháng",
+  "Make it a video": "Chuyển thành video",
+  "Make it an image": "Chuyển thành ảnh",
+  "The text in the box above is not in the queue yet ({n} prompts).": "Văn bản trong ô chưa được thêm vào hàng đợi ({n} prompt).",
+  "Add it": "Thêm",
+  "Results stay in the Results tab": "Kết quả vẫn nằm trong tab Kết quả"
 }

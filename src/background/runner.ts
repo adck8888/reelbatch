@@ -231,7 +231,8 @@ async function start1(queueId: string, scope: RunScope, opts: { continuing?: boo
     startedAt: keep && prev.startedAt ? prev.startedAt : Date.now(),
     spent: keep ? prev.spent : { credits: 0, usd: 0 },
     // earlier results of the same queue stay on record: "Not finished" must not run them again
-    rows: keep || prev.queueId === q.id ? prev.rows : {}
+    rows: keep || prev.queueId === q.id ? prev.rows : {},
+    ids: [...new Set([...(keep ? prev.ids ?? [] : []), ...rows.map((r) => r.id)])]
   };
   for (const r of rows) state.rows[r.id] = { status: 'queued', attempts: 0, results: [] };
   await flush();
@@ -984,7 +985,7 @@ async function finish(c: Ctl) {
     const rr = state.rows[r.id];
     if (rr && rr.status === 'queued' && stopped) rr.status = 'skipped';
   }
-  const all = Object.values(state.rows);
+  const all = state.ids ? state.ids.map((id) => state.rows[id]).filter(Boolean) : Object.values(state.rows);
   const done = all.filter((r) => r.status === 'done').length;
   const failed = all.filter((r) => r.status === 'failed').length;
   const summary = `${done} done, ${failed} failed${state.spent.credits ? `, ${state.spent.credits} credits` : ''}${state.spent.usd ? `, $${state.spent.usd.toFixed(2)}` : ''}`;

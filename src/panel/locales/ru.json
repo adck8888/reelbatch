@@ -487,7 +487,7 @@
   "Add": "Добавить",
   "Add or edit characters, then write @Name in the prompt": "Добавьте или измените персонажей, затем напишите @Имя в промпте",
   "Add these characters in Import → Characters": "Добавьте этих персонажей в Импорт → Персонажи",
-  "Add {n} prompts": "Добавить {n} промптов",
+  "Add {n} prompts": "Добавить: {n}",
   "Advanced": "Дополнительно",
   "All": "Все",
   "Basics": "Основное",
@@ -548,5 +548,10 @@
   "Unsupported aspect \"{x}\" — the queue default is used": "Неподдерживаемый формат «{x}» — используется формат очереди по умолчанию",
   "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
   "Lifetime": "Навсегда",
-  "Monthly": "Ежемесячно"
+  "Monthly": "Ежемесячно",
+  "Make it a video": "Сделать видео",
+  "Make it an image": "Сделать картинкой",
+  "The text in the box above is not in the queue yet ({n} prompts).": "Текст в поле выше ещё не добавлен в очередь (промптов: {n}).",
+  "Add it": "Добавить",
+  "Results stay in the Results tab": "Результаты останутся во вкладке «Результаты»"
 }

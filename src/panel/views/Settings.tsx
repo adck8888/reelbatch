@@ -338,10 +338,12 @@ function DiagnosticsCard() {
   const [busy, setBusy] = useState(false);
   const check = async () => {
     setBusy(true);
-    setH(await call<Health>({ type: 'flow:health' }));
+    const r = await call<Health>({ type: 'flow:health' });
+    setH(r);
     setBusy(false);
+    return r;
   };
-  const report = () =>
+  const report = (h: Health | null) =>
     [
       `Reelbatch ${__VERSION__} · ${navigator.userAgent}`,
       h ? `Health: ${h.items.map((i) => `${i.key}=${i.ok ? 'ok' : 'FAIL'}${i.detail ? ` (${i.detail})` : ''}`).join(', ')} · config ${h.configVersion ?? '?'}` : '',
@@ -357,14 +359,14 @@ function DiagnosticsCard() {
         <Button small variant="ghost" icon="refresh" onClick={() => call<{ version: string }>({ type: 'config:reload' }).then((r) => r && toast(t('Flow config {v}', { v: r.version }), 'ok'))}>
           {t('Reload Flow config')}
         </Button>
-        <Button small variant="ghost" icon="copy" onClick={() => copyText(report())}>
+        <Button small variant="ghost" icon="copy" onClick={async () => copyText(report(h ?? (await check())))}>
           {t('Copy report')}
         </Button>
         <Button
           small
           variant="ghost"
           icon="external"
-          onClick={() => chrome.tabs.create({ url: `${ISSUES_URL}?title=${encodeURIComponent(`Problem in ${__VERSION__}`)}&body=${encodeURIComponent(`${t('What happened:')}\n\n\n---\n\`\`\`\n${report().slice(0, 1500)}\n\`\`\``)}` })}
+          onClick={() => chrome.tabs.create({ url: `${ISSUES_URL}?title=${encodeURIComponent(`Problem in ${__VERSION__}`)}&body=${encodeURIComponent(`${t('What happened:')}\n\n\n---\n\`\`\`\n${report(h).slice(0, 1500)}\n\`\`\``)}` })}
         >
           {t('Report a problem')}
         </Button>

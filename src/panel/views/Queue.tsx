@@ -1,3 +1,4 @@
+import { signal } from '@preact/signals';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { GenSettings, Row, RowRun, RunScope } from '../../shared/types';
 import { type Estimate } from '../../shared/messages';
@@ -136,6 +137,14 @@ export function QueueView() {
               onEdit={() => setEditing({ row })}
               onMove={(d) => move(i, d)}
               onDuplicate={() => editQueue((x) => x.rows.splice(i + 1, 0, { ...structuredClone(row), id: crypto.randomUUID() }))}
+              onKind={(kind) =>
+                editQueue((x) => {
+                  const it = x.rows[i];
+                  // '' lets effectiveSettings pick the first model of the new kind
+                  const model = kind === 'video' && x.defaults.motionModel ? x.defaults.motionModel : '';
+                  it.overrides = diffSettings(x.defaults, effectiveSettings(x.defaults, { ...it.overrides, kind, model }));
+                })
+              }
               onDelete={() => editQueue((x) => void x.rows.splice(i, 1))}
               onToggle={() => editQueue((x) => void (x.rows[i].enabled = !x.rows[i].enabled))}
               onPrompt={(p) => editQueue((x) => void (x.rows[i].prompt = p))}
@@ -214,8 +223,12 @@ function QueueMenu({ hasDone }: { hasDone: boolean }) {
 
 // ---------- inline "Add prompts" ----------
 
+/** Text typed into the add box but not added yet; the run bar warns about it. */
+const draft = signal('');
+
 function AddPrompts({ onDone, canClose, importMenu }: { onDone: () => void; canClose: boolean; importMenu: MenuItem[] }) {
-  const [text, setText] = useState('');
+  const text = draft.value;
+  const setText = (v: string) => (draft.value = v);
   const [mode, setMode] = useState<SplitMode>('auto');
   const [delim, setDelim] = useState('---');
   const [strip, setStrip] = useState(true);
@@ -397,6 +410,7 @@ function RowItem(p: {
   onEdit: () => void;
   onMove: (d: number) => void;
   onDuplicate: () => void;
+  onKind: (kind: 'image' | 'video') => void;
   onDelete: () => void;
   onToggle: () => void;
   onPrompt: (s: string) => void;
@@ -479,6 +493,7 @@ function RowItem(p: {
             { label: row.enabled ? t('Disable') : t('Enable'), icon: 'toggle', run: p.onToggle },
             { label: t('Move up'), icon: 'up', run: () => p.onMove(-1) },
             { label: t('Move down'), icon: 'down', run: () => p.onMove(1) },
+            eff.kind === 'video' ? { label: t('Make it an image'), icon: 'image', run: () => p.onKind('image') } : { label: t('Make it a video'), icon: 'video', run: () => p.onKind('video') },
             { label: t('Duplicate'), icon: 'copy', run: p.onDuplicate },
             { label: t('Delete'), icon: 'trash', run: p.onDelete, danger: true, sep: true }
           ]}
@@ -718,7 +733,8 @@ function RunBar({ selecting }: { selecting: boolean }) {
   }, [active]);
   useEffect(() => setRunError(null), [q.rows.length, flowStatus.value?.state, pro.value]);
 
-  const rows = Object.values(mine ? r.rows : {});
+  // only the rows of the latest run: rows kept from earlier runs must not inflate "1 of 4"
+  const rows = mine ? (r.ids ?? Object.keys(r.rows)).map((id) => r.rows[id]).filter(Boolean) : [];
   const total = rows.length;
   const finished = rows.filter((x) => ['done', 'failed', 'skipped'].includes(x.status)).length;
   const done = rows.filter((x) => x.status === 'done').length;
@@ -757,6 +773,21 @@ function RunBar({ selecting }: { selecting: boolean }) {
     blocks.push({
       text: f.state === 'tab' ? t('Flow is open but no project is: open or create a project in the Flow tab.') : t('Flow is not open. Open a Flow project to run prompts in it.'),
       action: { label: f.state === 'tab' ? t('Show Flow') : t('Open Flow'), icon: 'external', run: () => void openFlow() }
+    });
+  }
+  if (!active && draft.value.trim()) {
+    const n = splitPrompts(draft.value, 'auto', '---', true).length;
+    blocks.push({
+      text: t('The text in the box above is not in the queue yet ({n} prompts).', { n }),
+      action: {
+        label: t('Add it'),
+        icon: 'plus',
+        run: () => {
+          const add = rowsFromPrompts(splitPrompts(draft.value, 'auto', '---', true), { prefix: '', suffix: '', repeat: 1, variations: true });
+          editQueue((x) => void (x.rows = [...x.rows, ...add]));
+          draft.value = '';
+        }
+      }
     });
   }
   if (est && est.proNeeded.length > 0) {
@@ -859,6 +890,11 @@ function RunBar({ selecting }: { selecting: boolean }) {
                 <Button small variant="ghost" icon="download" disabled={!pro.value} title={pro.value ? undefined : t('ZIP export is a Pro feature')} onClick={() => call({ type: 'export:zip', runId: r.runId }, t('ZIP saved to Downloads'))}>
                   {t('Download ZIP')}
                 </Button>
+                {done > 0 && (
+                  <Button small variant="ghost" icon="check" title={t('Results stay in the Results tab')} onClick={() => editQueue((x) => void (x.rows = x.rows.filter((row) => r.rows[row.id]?.status !== 'done')))}>
+                    {t('Remove done')}
+                  </Button>
+                )}
                 {failed > 0 && (
                   <Button small variant="ghost" icon="refresh" onClick={() => start({ kind: 'failed' })}>
                     {t('Retry {n} failed', { n: failed })}

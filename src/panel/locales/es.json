@@ -548,5 +548,10 @@
   "Unsupported aspect \"{x}\" — the queue default is used": "Formato \"{x}\" no admitido: se usa el predeterminado de la cola",
   "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
   "Lifetime": "De por vida",
-  "Monthly": "Mensual"
+  "Monthly": "Mensual",
+  "Make it a video": "Convertir en vídeo",
+  "Make it an image": "Convertir en imagen",
+  "The text in the box above is not in the queue yet ({n} prompts).": "El texto del cuadro aún no está en la cola ({n} prompts).",
+  "Add it": "Añadir",
+  "Results stay in the Results tab": "Los resultados siguen en la pestaña Resultados"
 }

@@ -548,5 +548,10 @@
   "Unsupported aspect \"{x}\" — the queue default is used": "असमर्थित अनुपात \"{x}\" — कतार का डिफ़ॉल्ट इस्तेमाल होगा",
   "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
   "Lifetime": "आजीवन",
-  "Monthly": "मासिक"
+  "Monthly": "मासिक",
+  "Make it a video": "वीडियो बनाएं",
+  "Make it an image": "इमेज बनाएं",
+  "The text in the box above is not in the queue yet ({n} prompts).": "बॉक्स का टेक्स्ट अभी कतार में नहीं है ({n} प्रॉम्प्ट)।",
+  "Add it": "जोड़ें",
+  "Results stay in the Results tab": "नतीजे Results टैब में रहते हैं"
 }

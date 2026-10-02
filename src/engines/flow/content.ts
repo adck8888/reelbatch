@@ -585,9 +585,46 @@ async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchO
         if (c.kind === 'video' && m.kind !== 'video') take({ mediaId: m.mediaId, url: '', kind: 'video' });
         else take(m);
       }
+    // Last resort for a single job: the tile that showed progress after Generate and now holds
+    // finished media, even when Flow gives that tile no media id (seen with finished videos).
+    if (![...byId.values()].some((m) => m.kind === c.kind) && !c.parallel) {
+      const j = jobResult();
+      if (j && !claimed.has(j.mediaId)) take(j);
+    }
     const all = [...byId.values()];
     const sameKind = all.filter((m) => m.kind === c.kind);
     return (sameKind.length ? sameKind : c.kind === 'image' ? all : []).slice(0, c.expect);
+  };
+  let jobTile: HTMLElement | null = null;
+  let jobIndex = -1;
+  const jobResult = (): FlowResult | null => {
+    const tiles = $$<HTMLElement>(cfg.selectors.tile);
+    const progress = rx('progress');
+    if (!jobTile) {
+      const i = tiles.findIndex((t) => progress.test(norm(t.textContent)) && !t.dataset.rbJob);
+      if (i < 0) return null;
+      jobTile = tiles[i];
+      jobIndex = i;
+      jobTile.dataset.rbJob = 'rb-' + c.id;
+      return null;
+    }
+    if (!jobTile.isConnected) {
+      // Flow re-rendered the grid: take the tile at the same position
+      const t = tiles[jobIndex];
+      if (!t) return null;
+      jobTile = t;
+      jobTile.dataset.rbJob = 'rb-' + c.id;
+    }
+    if (progress.test(norm(jobTile.textContent))) return null;
+    const video = jobTile.querySelector('video');
+    const img = jobTile.querySelector<HTMLImageElement>('img');
+    if (!video && !(img && img.complete && img.naturalWidth > 0)) return null;
+    const idEl = jobTile.querySelector('[data-media-id]');
+    const mediaId = idEl?.getAttribute('data-media-id') || 'rb-' + c.id;
+    if (known.has(mediaId)) return null;
+    const vsrc = video?.currentSrc || video?.src || '';
+    const url = c.kind === 'video' ? (vsrc.startsWith('http') ? vsrc : '') : img?.src.startsWith('http') ? img.src : '';
+    return { mediaId, url, kind: c.kind };
   };
   const done = (o: WatchOutcome): WatchOutcome => {
     for (const r of o.results) claimed.add(r.mediaId);
@@ -641,7 +678,7 @@ const QUALITY_ORDER = ['4K', '2K', '1080p', '720p', '1K'];
 
 async function download(mediaId: string, quality: string) {
   const media = $(`[data-media-id="${CSS.escape(mediaId)}"]`);
-  const tile = media?.closest(cfg.selectors.tile) as HTMLElement | null;
+  const tile = (media?.closest(cfg.selectors.tile) ?? $(`[data-rb-job="${CSS.escape(mediaId)}"]`)) as HTMLElement | null;
   if (!tile) return { ok: false, error: 'Result tile not found on the page' };
   tile.scrollIntoView({ block: 'center' });
   await step();
@@ -715,6 +752,22 @@ function health(): HealthReport {
     check('visible', true, 'This Flow tab is in the background. Keep it in its own window so Chrome does not slow it down.');
   if (recentRpcs.length) check('requests', true, recentRpcs.slice(-25).join(' '));
   if (freezes.length) check('freezes', true, freezes.join(' | '));
+  // what the newest result tiles look like, so selector fixes can be made from a pasted report
+  const snap = $$<HTMLElement>(S.tile)
+    .slice(0, 4)
+    .map((t, i) => {
+      const attrs = (el: Element) =>
+        [...el.attributes]
+          .filter((a) => a.name.startsWith('data-') || a.name === 'class')
+          .map((a) => `${a.name}=${a.value.slice(0, 40)}`)
+          .join(',');
+      const v = t.querySelector('video');
+      const im = t.querySelector('img');
+      const ids = $$('[data-media-id]', t).length;
+      const src = (x: string) => (x ? x.split('?')[0].slice(0, 60) : 'none');
+      return `#${i} {${attrs(t)}} ids=${ids} video=${v ? src(v.currentSrc || v.src || v.poster) : 'no'} img=${im ? src(im.src) : 'no'} kids=[${[...t.querySelectorAll('*')].slice(0, 12).map((e) => e.tagName.toLowerCase() + (e.getAttribute('data-media-id') ? '#id' : '')).join(' ')}] text="${norm(t.textContent).slice(0, 60)}"`;
+    });
+  check('tiles', true, snap.length ? snap.join(' || ') : 'no result tiles found');
   const signedIn = !/accounts\.google\.com/.test(location.href) && !!document.querySelector('img[src*="googleusercontent"], [aria-label*="@"]');
   return { ok: items.every((i) => i.ok), url: location.href, signedIn, items, configVersion: cfg.version };
 }

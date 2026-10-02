@@ -548,5 +548,10 @@
   "Unsupported aspect \"{x}\" — the queue default is used": "Rasio \"{x}\" tidak didukung — default antrean dipakai",
   "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
   "Lifetime": "Seumur hidup",
-  "Monthly": "Bulanan"
+  "Monthly": "Bulanan",
+  "Make it a video": "Jadikan video",
+  "Make it an image": "Jadikan gambar",
+  "The text in the box above is not in the queue yet ({n} prompts).": "Teks di kotak belum masuk antrean ({n} prompt).",
+  "Add it": "Tambahkan",
+  "Results stay in the Results tab": "Hasil tetap ada di tab Hasil"
 }

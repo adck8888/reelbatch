@@ -548,5 +548,10 @@
   "Unsupported aspect \"{x}\" — the queue default is used": "Desteklenmeyen oran \"{x}\" — kuyruk varsayılanı kullanılır",
   "TXT, CSV, DOCX · XLSX, JSON (Pro)": "TXT, CSV, DOCX · XLSX, JSON (Pro)",
   "Lifetime": "Ömür boyu",
-  "Monthly": "Aylık"
+  "Monthly": "Aylık",
+  "Make it a video": "Videoya çevir",
+  "Make it an image": "Görsele çevir",
+  "The text in the box above is not in the queue yet ({n} prompts).": "Kutudaki metin henüz kuyrukta değil ({n} istem).",
+  "Add it": "Ekle",
+  "Results stay in the Results tab": "Sonuçlar Sonuçlar sekmesinde kalır"
 }
