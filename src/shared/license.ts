@@ -6,8 +6,8 @@ import type { LicenseState, LicenseStatus } from './types';
  */
 export const PRO = {
   storeId: 471716,
-  /** Filled in once the Reelbatch product exists in the store. Empty = no key is accepted (fail closed). */
-  productIds: [] as number[],
+  /** "Reelbatch Pro" product (variants: Monthly 2195723, Lifetime 2195724). Keys from other products are rejected. */
+  productIds: [1406565] as number[],
   monthlyUrl: 'https://adcktools.lemonsqueezy.com/checkout/buy/REELBATCH_MONTHLY',
   lifetimeUrl: 'https://adcktools.lemonsqueezy.com/checkout/buy/REELBATCH_LIFETIME',
   monthlyPrice: '$9/month',
