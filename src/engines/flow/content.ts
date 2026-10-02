@@ -279,8 +279,9 @@ const isChecked = (el: Element) => el.getAttribute('aria-checked') === 'true' ||
 const isDisabled = (el: Element) => (el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true';
 
 async function pickRadio(pane: Element, match: (el: HTMLElement) => boolean, what: string) {
-  const el = radios(pane).find(match);
-  if (!el) throw new Error(`Flow has no "${what}" option here`);
+  // after a switch (image -> video) Flow re-renders the settings, so look in the live pane for a moment
+  const el = await waitFor(() => radios(pane.isConnected ? pane : (settingsPane() ?? pane)).find(match), 3000);
+  if (!el) throw new Error(`Flow has no "${what === 'text' ? 'Frames' : what}" option here`);
   if (isDisabled(el)) throw new Error(`"${what}" is not available for this model in Flow`);
   if (!isChecked(el)) {
     el.click();
