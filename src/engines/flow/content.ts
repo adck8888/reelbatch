@@ -211,6 +211,12 @@ function domMedia(): FlowResult[] {
   return [...out.values()];
 }
 
+/** A tile that already carries a media id but still shows Flow's progress text. */
+function tileRendering(mediaId: string) {
+  const tile = $(`[data-media-id="${CSS.escape(mediaId)}"]`)?.closest(cfg.selectors.tile);
+  return !!tile && rx('progress').test(norm(tile.textContent));
+}
+
 function renderingCount() {
   const re = rx('progress');
   return $$(cfg.selectors.tile).filter((t) => !t.querySelector(cfg.selectors.tileMedia) && re.test(norm(t.textContent))).length;
@@ -573,7 +579,7 @@ async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchO
     // was read before Generate was pressed, so anything newer is this prompt's).
     if (!byId.size && !c.parallel)
       for (const m of domMedia()) {
-        if (known.has(m.mediaId) || claimed.has(m.mediaId)) continue;
+        if (known.has(m.mediaId) || claimed.has(m.mediaId) || tileRendering(m.mediaId)) continue;
         // a finished video tile shows a poster image until it plays: trust the job's kind and
         // leave the URL empty, so the file is fetched through Flow's own download menu
         if (c.kind === 'video' && m.kind !== 'video') take({ mediaId: m.mediaId, url: '', kind: 'video' });
