@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Reelbatch — Bulk Veo & Nano Banana for Google Flow"
+  },
+  "extDescription": {
+    "message": "Run hundreds of image and video prompts in Google Flow or with your own Gemini/Replicate key. Auto-download, characters, chaining."
+  }
+}

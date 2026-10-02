@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Reelbatch — пакетная генерация Veo и Nano Banana во Flow"
+  },
+  "extDescription": {
+    "message": "Сотни промптов для картинок и видео в Google Flow или через свой ключ Gemini/Replicate. Автоскачивание, персонажи, цепочки."
+  }
+}

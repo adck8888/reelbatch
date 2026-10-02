@@ -1,0 +1,30 @@
+{
+  "name": "reelbatch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bulk Veo & Nano Banana automation for Google Flow, plus bring-your-own-key API generation.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "package": "node scripts/build.mjs --zip"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.3",
+    "fflate": "^0.8.3",
+    "mammoth": "^1.13.0",
+    "papaparse": "^5.7.0",
+    "preact": "^11.0.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.4",
+    "@types/papaparse": "^5.5.2",
+    "esbuild": "^0.28.2",
+    "fake-indexeddb": "^6.2.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

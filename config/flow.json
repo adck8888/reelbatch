@@ -1,0 +1,63 @@
+{
+  "version": "2026.10.02-1",
+  "minExtension": "1.0.0",
+  "selectors": {
+    "editor": "flow-rich-text-editor .ProseMirror, .prosemirror-editor .ProseMirror",
+    "generate": "flow-generate-icon-button button, button.generate-icon-button",
+    "generateDisabledClass": "mat-mdc-button-disabled",
+    "settingsTrigger": "button.settings-trigger-button",
+    "agentChip": "flow-agent-mode-toggle-chip",
+    "agentChipButton": "flow-agent-mode-toggle-chip button",
+    "agentOnClass": "checked",
+    "overlay": ".cdk-overlay-container",
+    "backdrop": ".cdk-overlay-backdrop",
+    "radio": "[role=radio]",
+    "menuTrigger": "button.mat-mdc-menu-trigger",
+    "menuItem": "[role=menuitem]",
+    "tile": "flow-grid-tile-container",
+    "tileMedia": "[data-media-id]",
+    "addMenu": "button.add-menu-trigger",
+    "fileInput": "input[type=file]",
+    "dropZone": "flow-base-prompt-box, flow-rich-text-editor",
+    "alerts": "mat-snack-bar-container, .mat-mdc-snack-bar-container, [role=alert], .cdk-live-announcer-element, flow-toast, .toast",
+    "dialogs": "mat-dialog-container, .mat-mdc-dialog-container, [role=dialog], [role=alertdialog]",
+    "attachmentChips": "flow-prompt-box-attachment, flow-ingredient-chip, .ingredient-chip, .attachment-chip",
+    "attachmentRemove": "button[aria-label*='emove'], button[aria-label*='дал'], button .material-symbols-outlined"
+  },
+  "icons": {
+    "image": "image",
+    "video": "videocam",
+    "frames": "crop_free",
+    "ingredients": "chrome_extension",
+    "download": "download",
+    "aspects": {
+      "16:9": "crop_16_9",
+      "4:3": "crop_landscape",
+      "1:1": "crop_square",
+      "3:4": "crop_portrait",
+      "9:16": "crop_9_16"
+    }
+  },
+  "text": {
+    "cost": "(?:credits|бонус|créditos|crédits|credito|tín dụng|क्रेडिट|kredit)[^\\d]{0,20}(\\d+)",
+    "progress": "(\\d{1,3})\\s*%",
+    "unusual": "unusual activity|unusual traffic|automated|необычн|подозрительн|actividad inusual|atividade incomum|atypique|hoạt động bất thường|असामान्य|tidak biasa|olağan ?dışı",
+    "policy": "policy|polic(y|ies)|guideline|violat|unsafe|can.?t generate|cannot generate|правил|политик|нарушает|не удалось создать|política|directrices|chính sách|नीति|kebijakan|politika|yönerge",
+    "credits": "not enough credits|out of credits|insufficient credits|no credits|недостаточно бонус|закончились бонус|не хватает бонус|créditos insuficientes|sin créditos|crédits insuffisants|không đủ tín dụng|kredit tidak cukup|yetersiz kredi",
+    "limit": "rate limit|too many requests|try again later|quota|limit reached|слишком много|повторите попытку позже|лимит|demasiadas solicitudes|muitas solicitações|quá nhiều|बहुत अधिक|terlalu banyak|çok fazla",
+    "failed": "failed|error|something went wrong|не удалось|ошибка|что-то пошло не так|falló|erro|échec|lỗi|त्रुटि|gagal|hata",
+    "dismiss": "^(got it|ok|close|dismiss|not now|no thanks|понятно|ок|закрыть|не сейчас|нет, спасибо|entendido|cerrar|fechar|entendi|đã hiểu|đóng|ठीक है|mengerti|tutup|anladım|kapat)$",
+    "download": "download|скачать|descargar|baixar|télécharger|tải xuống|डाउनलोड|unduh|indir"
+  },
+  "rpc": {
+    "imageGenerate": ["ogiZ0b"],
+    "videoGenerate": [],
+    "ignore": ["WuwhI", "nzlxg"]
+  },
+  "mediaUrl": "https://flow-content\\.google/(image|video)/([0-9a-f-]{36})[^\"\\\\\\s]*",
+  "timing": {
+    "imageTimeoutSec": 240,
+    "videoTimeoutSec": 900,
+    "uiStepMs": 350
+  }
+}

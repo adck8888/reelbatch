@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Reelbatch — Tạo Veo & Nano Banana hàng loạt cho Flow"
+  },
+  "extDescription": {
+    "message": "Chạy hàng trăm prompt ảnh và video trong Google Flow hoặc bằng khóa Gemini/Replicate của bạn. Tự tải xuống, nhân vật, nối cảnh."
+  }
+}
