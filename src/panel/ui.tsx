@@ -137,7 +137,7 @@ export function Select<T extends string | number>({ value, options, onChange, di
   );
 }
 
-export function NumberInput({ value, min, max, step = 1, onChange, width }: { value: number; min?: number; max?: number; step?: number; onChange: (v: number) => void; width?: number }) {
+export function NumberInput({ value, min, max, step = 1, onChange, width, integer }: { value: number; min?: number; max?: number; step?: number; onChange: (v: number) => void; width?: number; integer?: boolean }) {
   return (
     <input
       type="number"
@@ -147,10 +147,14 @@ export function NumberInput({ value, min, max, step = 1, onChange, width }: { va
       step={step}
       style={width ? { width: `${width}px` } : undefined}
       onChange={(e) => {
-        let v = parseFloat((e.target as HTMLInputElement).value);
+        const input = e.currentTarget as HTMLInputElement;
+        let v = parseFloat(input.value);
         if (!Number.isFinite(v)) v = min ?? 0;
+        if (integer) v = Math.trunc(v);
         if (min !== undefined) v = Math.max(min, v);
         if (max !== undefined) v = Math.min(max, v);
+        // show the clamped number even when it equals the old value and nothing re-renders
+        input.value = String(v);
         onChange(v);
       }}
     />

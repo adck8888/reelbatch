@@ -4,8 +4,14 @@
 
 const attached = new Set<number>();
 
-chrome.debugger.onDetach.addListener((src) => {
-  if (src.tabId !== undefined) attached.delete(src.tabId);
+let userCancel: ((tabId: number) => void) | undefined;
+/** Called when the user closes Chrome's "started debugging this browser" bar (Cancel). */
+export const onUserCancel = (fn: (tabId: number) => void) => (userCancel = fn);
+
+chrome.debugger.onDetach.addListener((src, reason) => {
+  if (src.tabId === undefined) return;
+  attached.delete(src.tabId);
+  if (reason === 'canceled_by_user') userCancel?.(src.tabId);
 });
 
 const cmd = <T = unknown>(tabId: number, method: string, params?: Record<string, unknown>) =>
@@ -37,8 +43,12 @@ export async function detach(tabId: number) {
   await chrome.debugger.detach({ tabId }).catch(() => {});
 }
 
+/** Drop every session of ours, including ones a previous service worker left behind. */
 export async function detachAll() {
-  await Promise.all([...attached].map(detach));
+  const targets = await chrome.debugger.getTargets().catch(() => [] as chrome.debugger.TargetInfo[]);
+  const tabs = new Set([...attached, ...targets.filter((t) => t.attached && t.tabId !== undefined).map((t) => t.tabId!)]);
+  attached.clear();
+  await Promise.all([...tabs].map((tabId) => chrome.debugger.detach({ tabId }).catch(() => {})));
 }
 
 export const isAttached = (tabId: number) => attached.has(tabId);
@@ -92,7 +102,10 @@ export async function selectAllAndDelete(tabId: number) {
 
 /** Type text as real input. Long text goes in chunks so Flow's editor keeps up. */
 export async function insertText(tabId: number, text: string) {
-  const chunks = text.match(/[\s\S]{1,400}/g) ?? [];
+  // split by code points so an emoji or other surrogate pair is never cut in half
+  const chars = Array.from(text);
+  const chunks: string[] = [];
+  for (let i = 0; i < chars.length; i += 400) chunks.push(chars.slice(i, i + 400).join(''));
   for (const c of chunks) {
     await cmd(tabId, 'Input.insertText', { text: c });
     await pause(20);

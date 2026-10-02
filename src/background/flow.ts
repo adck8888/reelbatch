@@ -10,8 +10,20 @@ export const FLOW_URL = 'https://flow.google.com/';
 
 export type FlowFailReason = Extract<WatchOutcome, { ok: false }>['reason'] | 'setup' | 'budget';
 
+/**
+ * When the error happened relative to pressing Generate:
+ * before: nothing was sent, safe to retry; unconfirmed: Generate was pressed but Flow showed no sign
+ * of it; after: Flow accepted the prompt (credits may be spent, a retry would generate again).
+ */
+export type FlowPhase = 'before' | 'unconfirmed' | 'after';
+
 export class FlowError extends Error {
-  constructor(public reason: FlowFailReason, message: string, public results: FlowResult[] = []) {
+  constructor(
+    public reason: FlowFailReason,
+    message: string,
+    public results: FlowResult[] = [],
+    public phase: FlowPhase = 'before'
+  ) {
     super(message);
   }
 }
@@ -40,11 +52,13 @@ export async function sendTab<T>(tabId: number, cmd: FlowCommand | { type: 'conf
 
 /** Make sure our scripts run in the tab (tabs opened before install/update need injection). */
 export async function ensureContent(tabId: number) {
-  try {
-    const r = await sendTab<{ ok: boolean }>(tabId, { type: 'ping' }, 3000);
-    if (r?.ok) return;
-  } catch {
-    /* inject below */
+  for (let i = 0; i < 2; i++) {
+    try {
+      const r = await sendTab<{ ok: boolean }>(tabId, { type: 'ping' }, 3000);
+      if (r?.ok) return;
+    } catch {
+      /* not there (or busy): ask once more, then inject */
+    }
   }
   await chrome.scripting.executeScript({ target: { tabId }, files: ['flow-page.js'], world: 'MAIN' }).catch(() => {});
   await chrome.scripting.executeScript({ target: { tabId }, files: ['flow-content.js'] });
@@ -86,6 +100,7 @@ export interface FlowJob {
   signal: AbortSignal;
   /** Called with Flow's live cost before submitting; throw to cancel (budget guard). */
   approveCost: (cost: number) => Promise<void> | void;
+  /** 'rendering' means Flow accepted the prompt: from here on credits count as spent. */
   onStatus: (s: 'sending' | 'rendering') => void;
 }
 
@@ -134,6 +149,10 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
   const submitted = await withTabLock(tabId, async () => {
     job.signal.throwIfAborted();
     await dbg.attach(tabId);
+    // read warnings before dismissing dialogs: "unusual activity" must not be clicked away
+    const pre = await sendTab<FlowSnapshot>(tabId, { type: 'snapshot' });
+    const warn = pre.alerts.find((a) => new RegExp(cfg.text.unusual, 'i').test(a));
+    if (warn) throw new FlowError('unusual', warn.slice(0, 200));
     await sendTab(tabId, { type: 'dismiss' });
 
     const prep = await sendTab<PrepareOutcome>(tabId, { type: 'prepare', settings, target: model.target }, 30_000);
@@ -141,14 +160,13 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
     const cost = prep.cost ?? model.cost(settings) * settings.count;
     await job.approveCost(cost);
 
-    // reference images / frames
-    const wantsAttach = job.refs.length || job.startFrame || job.endFrame;
-    await sendTab(tabId, { type: 'clearAttachments' }, 15_000).catch(() => {});
-    if (wantsAttach) {
-      if (job.startFrame) await attach(tabId, 'start', [job.startFrame]);
-      if (job.endFrame) await attach(tabId, 'end', [job.endFrame]);
-      if (job.refs.length) await attach(tabId, 'refs', job.refs);
-    }
+    // reference images / frames: leftovers from the previous prompt must be gone first
+    const cleared = await sendTab<{ ok: boolean; left?: number }>(tabId, { type: 'clearAttachments' }, 20_000);
+    if (cleared.left) throw new FlowError('setup', 'Could not remove the previous prompt’s images in Flow');
+    if (job.startFrame) await attach(tabId, 'start', [job.startFrame]);
+    if (job.endFrame) await attach(tabId, 'end', [job.endFrame]);
+    if (job.refs.length) await attach(tabId, 'refs', job.refs);
+    job.signal.throwIfAborted();
 
     const before = await sendTab<FlowSnapshot>(tabId, { type: 'snapshot' });
     if (before.alerts.some((a) => new RegExp(cfg.text.unusual, 'i').test(a))) throw new FlowError('unusual', before.alerts[0]);
@@ -166,46 +184,74 @@ export async function runFlowJob(job: FlowJob): Promise<FlowJobResult> {
     const gen = await sendTab<{ ok: boolean; disabled?: boolean; error?: string }>(tabId, { type: 'markGenerate' });
     if (!gen.ok) throw new FlowError('setup', gen.error ?? 'Generate button not found');
     if (gen.disabled) throw new FlowError('setup', 'Flow’s Generate button is disabled (check attachments and settings)');
+    job.signal.throwIfAborted();
     const since = Date.now();
     await dbg.click(tabId, '[data-rb="gen"]');
 
-    // Confirm the submission landed: the editor clears or a new tile starts rendering.
+    // Confirm the submission landed: Flow sent a generate request, the editor cleared, or a new
+    // tile started rendering. Generate is pressed once only: pressing again could pay twice.
+    let req = 0;
     let landed = false;
-    for (let i = 0; i < 16 && !landed; i++) {
+    for (let i = 0; i < 25 && !(landed && req); i++) {
       await sleep(400);
-      const [t, snap] = await Promise.all([
+      const [claim, t, snap] = await Promise.all([
+        req ? Promise.resolve({ id: req }) : sendTab<{ id: number }>(tabId, { type: 'claimRequest', since }),
         sendTab<{ text: string }>(tabId, { type: 'editorText' }),
         sendTab<FlowSnapshot>(tabId, { type: 'snapshot' })
       ]);
-      landed = !t.text || snap.rendering > before.rendering || snap.mediaIds.length > before.mediaIds.length;
-      if (i === 8 && !landed) await dbg.key(tabId, 'Enter');
+      req = claim.id;
+      landed ||= !!req || !t.text || snap.rendering > before.rendering || snap.mediaIds.length > before.mediaIds.length;
+      // image requests are recognised by id; video ones may not be, so a visible sign is enough
+      if (landed && !req && i >= 4) break;
     }
-    if (!landed) throw new FlowError('setup', 'Flow did not start the generation');
-    return { since, known: before.mediaIds, cost };
+    if (!landed)
+      throw new FlowError(
+        'error',
+        'Generate was pressed but Flow showed no sign of starting. Check the Flow tab; if nothing is rendering there, use Retry failed.',
+        [],
+        'unconfirmed'
+      );
+    return { since, known: before.mediaIds, cost, req };
   });
 
   job.onStatus('rendering');
   const timeoutMs = (settings.kind === 'video' ? cfg.timing.videoTimeoutSec : cfg.timing.imageTimeoutSec) * 1000;
-  const outcome = await sendTab<WatchOutcome>(
-    tabId,
-    {
-      type: 'watch',
-      since: submitted.since,
-      known: submitted.known,
-      expect: settings.count,
-      kind: settings.kind,
-      timeoutMs,
-      prompt: job.parallel ? job.prompt : ''
-    },
-    timeoutMs + 30_000
-  );
-  if (!outcome.ok) throw new FlowError(outcome.reason, outcome.message, outcome.results);
+  const watchId = crypto.randomUUID();
+  const onAbort = () => void sendTab(tabId, { type: 'cancelWatch', id: watchId }, 5000).catch(() => {});
+  job.signal.addEventListener('abort', onAbort, { once: true });
+  let outcome: WatchOutcome;
+  try {
+    outcome = await sendTab<WatchOutcome>(
+      tabId,
+      {
+        type: 'watch',
+        id: watchId,
+        since: submitted.since,
+        known: submitted.known,
+        expect: settings.count,
+        kind: settings.kind,
+        timeoutMs,
+        prompt: job.prompt,
+        req: submitted.req,
+        parallel: job.parallel
+      },
+      timeoutMs + 30_000
+    );
+  } catch (e) {
+    job.signal.throwIfAborted();
+    throw new FlowError('timeout', `Lost contact with the Flow tab while waiting for the result (${e instanceof Error ? e.message : e})`, [], 'after');
+  } finally {
+    job.signal.removeEventListener('abort', onAbort);
+  }
+  job.signal.throwIfAborted();
+  if (!outcome.ok) throw new FlowError(outcome.reason, outcome.message, outcome.results, 'after');
   return { results: outcome.results, cost: submitted.cost, partial: outcome.partial };
 }
 
 async function attach(tabId: number, slot: 'refs' | 'start' | 'end', blobs: Blob[]) {
   const files = await toFiles(blobs);
-  const r = await sendTab<{ ok: boolean; error?: string }>(tabId, { type: 'attach', slot, files }, 60_000);
+  // the content script waits up to 90 s for Flow to process an upload, plus the picker steps
+  const r = await sendTab<{ ok: boolean; error?: string }>(tabId, { type: 'attach', slot, files }, 150_000);
   if (!r.ok) throw new FlowError('setup', r.error ?? 'Could not attach images in Flow');
 }
 
@@ -213,6 +259,15 @@ async function attach(tabId: number, slot: 'refs' | 'start' | 'end', blobs: Blob
 export async function flowMenuDownload(tabId: number, mediaId: string, quality: string) {
   await ensureContent(tabId);
   return withTabLock(tabId, () => sendTab<{ ok: boolean; quality?: string; error?: string }>(tabId, { type: 'download', mediaId, quality }, 20_000));
+}
+
+// Flow names its own downloads, so a menu download is matched to its file by order. One menu
+// download at a time across all tabs keeps that order unambiguous.
+let menuChain: Promise<unknown> = Promise.resolve();
+export function serialMenuDownload<T>(fn: () => Promise<T>): Promise<T> {
+  const run = menuChain.then(fn, fn);
+  menuChain = run.catch(() => {});
+  return run;
 }
 
 export async function releaseTabs(tabIds: number[]) {

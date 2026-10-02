@@ -58,7 +58,23 @@ export type FlowCommand =
   | { type: 'snapshot' }
   | { type: 'attach'; slot: 'refs' | 'start' | 'end'; files: { name: string; type: string; dataUrl: string }[] }
   | { type: 'clearAttachments' }
-  | { type: 'watch'; since: number; known: string[]; expect: number; kind: MediaKind; timeoutMs: number; prompt: string }
+  | {
+      type: 'watch';
+      /** Lets the background cancel this watch. */
+      id: string;
+      since: number;
+      known: string[];
+      expect: number;
+      kind: MediaKind;
+      timeoutMs: number;
+      prompt: string;
+      /** Hook id of the generate request this submit sent (0 when unknown, e.g. video). */
+      req: number;
+      /** Other jobs render in the same tab: accept only results tied to this request or prompt. */
+      parallel: boolean;
+    }
+  | { type: 'cancelWatch'; id: string }
+  | { type: 'claimRequest'; since: number }
   | { type: 'download'; mediaId: string; quality: string }
   | { type: 'dismiss' }
   | { type: 'videoFrame'; mediaId: string; which: 'last' | 'first' };
@@ -89,6 +105,9 @@ export interface PrepareOutcome {
 /** Page hook (MAIN world) -> content script, via window.postMessage. */
 export interface HookMessage {
   source: 'reelbatch-hook';
+  /** Request sequence number within the page. */
+  id: number;
+  phase: 'start' | 'end';
   rpcids: string;
   status: number;
   body: string;

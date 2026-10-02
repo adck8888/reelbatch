@@ -1,6 +1,6 @@
 # Chrome Web Store listing
 
-**Name:** Reelbatch — Bulk Veo & Nano Banana for Google Flow
+**Name:** Reelbatch – Batch Image & Video Generator for Google Flow
 **Category:** Productivity → Tools (alt: Art & Design)
 **Language:** English (plus 7 localised names and descriptions in `_locales`)
 
@@ -15,16 +15,16 @@ Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of pro
 **Built for people who generate at volume:** YouTube and TikTok channels, ad and UGC studios, storyboard artists, e-commerce teams and prompt testers.
 
 ### Bulk generation in Google Flow
-• Queue unlimited prompts: paste them, or import from TXT, CSV, DOCX, Excel, JSON or Google Sheets
-• Nano Banana 2, Nano Banana Pro, Veo 3.1 (Lite, Fast, Quality) and Omni 1.1 Flash
+• Queue hundreds of prompts (no daily limit on Pro): paste them, or import from TXT, CSV, DOCX, Excel, JSON or Google Sheets
+• Every model in your Flow plan: Nano Banana 2, Nano Banana Pro, Veo 3.1 (Lite, Fast, Quality) and Omni 1.1 Flash
 • Text-to-video, frames-to-video (start and end frame) and ingredients (reference images)
 • Per-row overrides for model, aspect ratio, outputs, duration and resolution
 • Auto-download with templates such as {n}_{prompt}_{model}, in folders per queue or per run
-• Upscaled downloads (2K/4K images, 1080p video) when Flow offers them
+• Upscaled downloads (2K/4K images, 1080p video) when your Flow plan offers them
 
 ### Your own API keys (optional)
 • Gemini API: Veo 3.1 and Nano Banana via your Google AI key
-• Replicate: Kling 3.0, Seedance 2.0, Hailuo 2.3, FLUX.2, GPT Image 2, Ideogram 3 and more
+• Replicate: Kling 3.0, Seedance 2.0, Hailuo 2.3, Veo 3.1, FLUX.2 [pro], GPT Image 2, Ideogram 3 Turbo and Nano Banana Pro
 • You pay the provider directly at their prices. No markup, no middle server.
 
 ### Consistency and storytelling
@@ -36,7 +36,8 @@ Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of pro
 ### Safe, unattended runs
 • Credit budget guard: stops before spending more Flow credits or dollars than you allow
 • Smart retries, a cooldown when Flow reports unusual activity, and a pause when you run out of credits
-• Human-like pacing and several Flow tabs in parallel
+• Adjustable pause between prompts and several Flow tabs in parallel
+• Keeps the computer awake while a batch runs
 • Scheduler: start a queue overnight
 • Resume after a browser restart
 
@@ -51,10 +52,16 @@ Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of pro
 **Pro ($9/month or $69 once):** unlimited prompts, parallel runs and several tabs, API engines, characters, chaining, image→video, upscaled downloads, scheduler, AI helper, Sheets/Excel/JSON import, ZIP export.
 A 7-day Pro trial is included and needs no card.
 
-### Privacy
-Reelbatch has no server. Your prompts, files and keys stay in your browser. Privacy policy: https://github.com/adck8888/reelbatch/blob/main/PRIVACY.md
+### FAQ
+**Why does Chrome show "Reelbatch started debugging this browser"?** Flow only reacts to real clicks and key presses. Reelbatch uses Chrome's debugger interface on the Flow tab, only while a batch runs, to press Generate for you. The bar disappears when the run ends. Closing it pauses the run.
+**Do I need a paid Flow plan?** No. Reelbatch uses the credits of whatever Flow plan you have. Pro unlocks features in Reelbatch, not Flow credits.
+**What if Flow changes its page?** Reelbatch reads a small public configuration file, so most layout changes are fixed within hours without a store update. Report problems at https://github.com/adck8888/reelbatch/issues
+**Will it spend my credits by surprise?** No. Set a credit budget and Reelbatch stops before it is reached. Each prompt is sent once; a failure after sending is never retried automatically.
 
-Reelbatch is an independent tool and is not affiliated with or endorsed by Google, Replicate or any model provider. You are responsible for following the terms of the services you use.
+### Privacy
+Reelbatch has no server. Your prompts, files and keys stay in your browser. Licence checks go to Lemon Squeezy, and the Flow layout file comes from GitHub. Privacy policy: https://github.com/adck8888/reelbatch/blob/main/PRIVACY.md
+
+Reelbatch is an independent tool and is not affiliated with or endorsed by Google, Replicate or any model provider. Google, Flow, Veo, Gemini and Nano Banana are trademarks of Google LLC; other names belong to their owners. You are responsible for following the terms of the services you use.
 
 ## Single purpose
 
@@ -69,12 +76,14 @@ Batch-generate images and videos from a list of prompts: in Google Flow through 
 - **sidePanel:** the main UI.
 - **alarms:** scheduled runs and periodic licence checks.
 - **notifications:** tells the user when a batch finishes or needs attention.
+- **power:** keeps the computer from sleeping while a batch runs (released when it ends), so overnight runs finish.
 - **offscreen:** builds ZIP archives, thumbnails and video frames (for chaining) from blobs, which a service worker cannot do.
 - **Host flow.google.com, flow-content.google:** drive Flow and fetch the generated media the user created.
 - **Host generativelanguage.googleapis.com, api.replicate.com, replicate.delivery:** call the providers with the user's own keys and fetch the results.
 - **Host api.lemonsqueezy.com:** licence activation and validation.
 - **Host raw.githubusercontent.com:** download the public selector configuration so a Flow layout change can be fixed without a store update. It is data only; no code is loaded remotely.
-- **Optional docs.google.com, googleusercontent.com, storage.googleapis.com:** requested only when the user imports a Google Sheet or a reference image from those hosts.
+- **Host googleusercontent.com, storage.googleapis.com:** Flow and the Gemini API serve generated media (upscaled downloads, finished videos) from these hosts.
+- **Optional docs.google.com:** requested only when the user imports a Google Sheet.
 
 **Remote code:** No. All code is in the package; the remote file is JSON data (CSS selectors and text labels).
 

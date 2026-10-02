@@ -15,9 +15,11 @@ const ILLEGAL = /[\\/:*?"<>|\u0000-\u001f\u007f]+/g;
 /** Make one path segment safe for chrome.downloads (Windows rules are the strictest). */
 export function safeSegment(s: string, max = 80) {
   let out = s.replace(ILLEGAL, ' ').replace(/\s+/g, ' ').trim();
-  out = out.replace(/^[.\s]+|[.\s]+$/g, '');
-  if (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(out)) out = `_${out}`;
-  return out.slice(0, max).trim() || '_';
+  // trim after cutting too: Windows drops trailing dots and spaces, which breaks the download
+  out = out.slice(0, max).replace(/^[.\s]+|[.\s]+$/g, '');
+  // reserved device names, also with an extension ("con.txt", "LPT1.png")
+  if (/^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i.test(out)) out = `_${out}`;
+  return out || '_';
 }
 
 export function slug(s: string, max = 60) {
@@ -47,7 +49,9 @@ export function renderName(tpl: string, c: NameContext): string {
     variant: String(c.variant),
     kind: c.kind,
     date: `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}`,
-    time: `${pad(d.getHours(), 2)}-${pad(d.getMinutes(), 2)}-${pad(d.getSeconds(), 2)}`
+    time: `${pad(d.getHours(), 2)}-${pad(d.getMinutes(), 2)}-${pad(d.getSeconds(), 2)}`,
+    /** The run's start, e.g. 2026-10-02_21-30: one folder per run. */
+    run: `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}_${pad(d.getHours(), 2)}-${pad(d.getMinutes(), 2)}`
   };
   for (const [k, v] of Object.entries(c.vars ?? {})) if (!(k in values)) values[k] = slug(v, 40);
   return tpl.replace(/\{([\w.-]+)\}/g, (all, k: string) => values[k] ?? values[k.toLowerCase()] ?? all);

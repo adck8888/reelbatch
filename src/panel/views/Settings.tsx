@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { ApiKeys } from '../../shared/types';
 import type { HealthReport as Health } from '../../shared/messages';
 import { PRO } from '../../shared/license';
-import { renderName } from '../../shared/template';
+import { buildPath } from '../../shared/template';
 import { t, LANGS } from '../i18n';
 import { license, logs, plan, pro, queue, queueIndex, saveSettings, schedule, settings, trialLeft, usedToday } from '../store';
 import { Button, Field, Icon, NumberInput, ProBadge, Select, Toggle, call, copyText, toast } from '../ui';
@@ -45,9 +45,10 @@ function LicenseCard() {
   const [busy, setBusy] = useState(false);
   const activate = async () => {
     setBusy(true);
-    await call({ type: 'license:activate', key }, t('Pro activated. Thank you!'));
+    const ok = await call({ type: 'license:activate', key }, t('Pro activated. Thank you!'));
     setBusy(false);
-    setKey('');
+    // keep the key in the field after a failure so a typo can be fixed instead of pasted again
+    if (ok !== null) setKey('');
   };
   return (
     <Card title={t('Plan')}>
@@ -91,7 +92,7 @@ function LicenseCard() {
             <Button variant="primary" onClick={() => chrome.tabs.create({ url: PRO.lifetimeUrl })}>
               {t('{price} — lifetime', { price: PRO.lifetimePrice })}
             </Button>
-            <Button onClick={() => chrome.tabs.create({ url: PRO.monthlyUrl })}>{PRO.monthlyPrice}</Button>
+            <Button onClick={() => chrome.tabs.create({ url: PRO.monthlyUrl })}>{t('{price}/month', { price: PRO.monthlyPrice.replace(/\s*\/\s*month$/i, '') })}</Button>
             {!l.trialStartedAt && (
               <Button variant="ghost" onClick={() => call({ type: 'license:trial' }, t('Trial started: 7 days of Pro'))}>
                 {t('Start 7-day trial')}
@@ -177,8 +178,9 @@ function DownloadCard() {
   const d = settings.value.run.download;
   const set = (fn: (x: typeof d) => void) => saveSettings((s) => fn(s.run.download));
   const example = (() => {
-    const ctx = { n: 7, total: 120, prompt: 'A red fox jumping over a frozen river at dawn', model: 'Veo 3.1 Fast', queue: queue.value?.name ?? 'Queue 1', variant: 1, kind: 'video' };
-    return `${renderName(d.folder, ctx)}/${renderName(d.filename, ctx)}.mp4`;
+    const ctx = { n: 7, total: 120, prompt: 'A red fox jumping over a frozen river at dawn', model: 'Veo 3.1 Fast', queue: queue.value?.name ?? `${t('Queue')} 1`, variant: 1, kind: 'video' };
+    // the same path builder the downloads use, so the example shows the real (sanitised) path
+    return buildPath(d.folder, d.filename, 'mp4', ctx);
   })();
   return (
     <Card title={t('Downloads')}>
@@ -247,20 +249,51 @@ function KeyRow({ provider, label, link, value }: { provider: keyof ApiKeys; lab
   const [v, setV] = useState(value ?? '');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** The key in the field failed its last Test; it is not saved until it is changed. */
+  const [failed, setFailed] = useState(false);
+  /** A first key stored on blur before it was tested; dropped again if its Test fails. */
+  const [autoSaved, setAutoSaved] = useState('');
+  const saved = value ?? '';
   const save = async (next: string) => saveSettings((s) => void (s.keys[provider] = next.trim() || undefined));
+  const edit = (next: string) => {
+    setV(next);
+    setFailed(false);
+  };
+  /** On blur: store a first key right away, but never let an untested edit replace a saved key. */
+  const onBlur = () => {
+    const next = v.trim();
+    if (next === saved.trim() || failed) return;
+    if (!next) {
+      if (confirm(t('Remove the saved {name} key?', { name: label }))) void save('');
+      else setV(saved);
+      return;
+    }
+    if (!saved) {
+      setAutoSaved(next);
+      void save(next);
+    }
+  };
   const test = async () => {
     setBusy(true);
     const r = await call<{ ok: boolean; veo?: string[]; username?: string }>({ type: 'api:test', provider, key: v });
     setBusy(false);
     if (r?.ok) {
+      setFailed(false);
+      setAutoSaved('');
       await save(v);
       toast(provider === 'gemini' ? t('Key works. Veo models available: {n}', { n: r.veo?.length ?? 0 }) : t('Key works ({user})', { user: r.username ?? '' }), 'ok');
+    } else {
+      setFailed(true);
+      if (autoSaved && autoSaved === v.trim()) await save('');
+      setAutoSaved('');
+      if (r) toast(t('The key did not work. It was not saved.'), 'error');
     }
   };
+  const pending = !!saved && v.trim() !== saved.trim() && !!v.trim();
   return (
     <Field label={label} hint={<a href={link} target="_blank" rel="noreferrer">{t('Get a key')} ↗</a>}>
       <div class="row-wrap">
-        {show ? <input type="text" class="grow" value={v} autocomplete="off" spellcheck={false} onInput={(e) => setV((e.target as HTMLInputElement).value)} onBlur={() => save(v)} /> : <input type="password" class="grow" value={v} autocomplete="off" spellcheck={false} onInput={(e) => setV((e.target as HTMLInputElement).value)} onBlur={() => save(v)} />}
+        {show ? <input type="text" class="grow" value={v} autocomplete="off" spellcheck={false} onInput={(e) => edit((e.target as HTMLInputElement).value)} onBlur={onBlur} /> : <input type="password" class="grow" value={v} autocomplete="off" spellcheck={false} onInput={(e) => edit((e.target as HTMLInputElement).value)} onBlur={onBlur} />}
         <Button small variant="ghost" onClick={() => setShow(!show)}>
           {show ? t('Hide') : t('Show')}
         </Button>
@@ -268,6 +301,7 @@ function KeyRow({ provider, label, link, value }: { provider: keyof ApiKeys; lab
           {busy ? '…' : t('Test')}
         </Button>
       </div>
+      {pending && <span class="hint warn">{failed ? t('This key did not work; the saved key is still used.') : t('Press Test to replace the saved key.')}</span>}
     </Field>
   );
 }
@@ -282,6 +316,8 @@ function ScheduleCard() {
     return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
   });
   const [qid, setQid] = useState(queue.value?.id ?? '');
+  const at = when ? new Date(when).getTime() : NaN;
+  const whenOk = Number.isFinite(at) && at > Date.now();
   return (
     <Card title={t('Scheduled run')} badge>
       {s?.enabled ? (
@@ -300,13 +336,15 @@ function ScheduleCard() {
           <input type="datetime-local" value={when} onInput={(e) => setWhen((e.target as HTMLInputElement).value)} />
           <Button
             small
-            disabled={!pro.value || !qid}
-            onClick={() => call({ type: 'schedule:set', schedule: { enabled: true, at: new Date(when).getTime(), queueId: qid, scope: { kind: 'pending' } } }, t('Scheduled'))}
+            disabled={!pro.value || !qid || !whenOk}
+            title={whenOk ? undefined : t('Pick a date and time in the future')}
+            onClick={() => call({ type: 'schedule:set', schedule: { enabled: true, at, queueId: qid, scope: { kind: 'pending' } } }, t('Scheduled'))}
           >
             {t('Schedule')}
           </Button>
         </div>
       )}
+      {!s?.enabled && !whenOk && <p class="hint warn">{t('Pick a date and time in the future')}</p>}
       <p class="hint">{t('Chrome must be running and the Flow tab signed in at that time.')}</p>
     </Card>
   );
@@ -386,7 +424,7 @@ function DiagnosticsCard() {
         <ul class="health">
           {h.items.map((i) => (
             <li key={i.key} class={i.ok ? 'ok' : 'bad'}>
-              <Icon name={i.ok ? 'check' : 'alert'} size={14} /> <b>{i.key}</b> {i.detail && <span class="muted">{i.detail}</span>}
+              <Icon name={i.ok ? 'check' : 'alert'} size={14} /> <b title={i.key}>{healthLabel(i.key)}</b> {i.detail && <span class="muted">{healthDetail(i.detail)}</span>}
             </li>
           ))}
         </ul>
@@ -404,6 +442,35 @@ function DiagnosticsCard() {
       <p class="hint">Reelbatch {__VERSION__}</p>
     </Card>
   );
+}
+
+/** Human names for the checks the Flow tab reports by key. */
+function healthLabel(key: string): string {
+  const labels: Record<string, string> = {
+    tab: t('Flow tab'),
+    project: t('Flow project open'),
+    editor: t('Prompt box found'),
+    generate: t('Generate button found'),
+    agent: t('Agent mode'),
+    settings: t('Generation settings menu'),
+    hook: t('Result watcher'),
+    visible: t('Tab in the foreground')
+  };
+  return labels[key] ?? key;
+}
+
+/** The content script writes details in English; translate the ones it is known to send. */
+function healthDetail(detail: string): string {
+  const known: Record<string, string> = {
+    'No Flow tab is open': t('No Flow tab is open'),
+    'Open a Flow project (flow.google.com → New project)': t('Open a Flow project (flow.google.com → New project)'),
+    'direct mode': t('Off (direct mode)'),
+    'Agent mode is on — Reelbatch turns it off automatically': t('Agent mode is on — Reelbatch turns it off automatically'),
+    'checked after Agent mode is off': t('checked after Agent mode is off'),
+    'Reload the Flow tab once so Reelbatch can observe results': t('Reload the Flow tab once so Reelbatch can observe results'),
+    'This Flow tab is in the background. Keep it in its own window so Chrome does not slow it down.': t('This Flow tab is in the background. Keep it in its own window so Chrome does not slow it down.')
+  };
+  return known[detail] ?? detail;
 }
 
 interface FlowTab {

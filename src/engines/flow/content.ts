@@ -11,6 +11,27 @@ import { extractMedia, parseBatch } from './batch';
 type FailReason = Extract<WatchOutcome, { ok: false }>['reason'];
 
 let cfg: FlowConfig = BUNDLED_CONFIG;
+
+// Injecting the script again into a tab that already runs it (a slow ping, a manual reload of the
+// extension's scripts) must not register a second set of listeners: both would act on every command.
+// A copy left behind by an extension update is dead (its runtime is gone) and is replaced.
+const G = globalThis as { __rbContentAlive?: () => boolean };
+const ACTIVE = (() => {
+  try {
+    if (G.__rbContentAlive?.()) return false;
+  } catch {
+    /* the old copy's context is gone */
+  }
+  G.__rbContentAlive = () => {
+    try {
+      return !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  };
+  return true;
+})();
+
 const loadConfig = async () => {
   try {
     const c = await chrome.runtime.sendMessage({ type: 'flow:config' });
@@ -19,7 +40,7 @@ const loadConfig = async () => {
     /* background asleep or reloading: keep the bundled config */
   }
 };
-void loadConfig();
+if (ACTIVE) void loadConfig();
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const step = () => sleep(cfg.timing.uiStepMs + Math.random() * 150);
@@ -64,48 +85,99 @@ function labelOf(el: Element): string {
 interface SeenMedia extends FlowResult {
   t: number;
   rpc: string;
-  /** Letters/digits of the response that carried it, to match results to prompts in parallel runs. */
+  /** Hook request id when the media came back in the response to a generate request, else 0. */
+  req: number;
+  /** Letters/digits of the response that carried it, to match results to prompts. */
   ctx: string;
 }
-const simplify = (s: string) => s.replace(/\\u[0-9a-f]{4}/gi, '').replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase();
-const seen = new Map<string, SeenMedia>();
-const netErrors: { t: number; rpc: string; reason: FailReason; message: string }[] = [];
 
-window.addEventListener('message', (ev) => {
-  if (ev.source !== window || ev.origin !== location.origin) return;
-  const m = ev.data as HookMessage;
-  if (!m || m.source !== 'reelbatch-hook') return;
-  onRpc(m);
-});
+/** Letters and digits only. Responses carry prompts JSON-escaped (often twice): decode first. */
+const simplify = (s: string) =>
+  s
+    .replace(/\\+u([0-9a-fA-F]{4})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\+[nrtbf]/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, '')
+    .toLowerCase();
+
+const seen = new Map<string, SeenMedia>();
+/** Generate requests Flow sent, in order; each submit claims the first one after its click. */
+const requests: { id: number; t: number; claimed: boolean }[] = [];
+const netErrors: { t: number; rpc: string; req: number; ctx: string; reason: FailReason; message: string }[] = [];
+/** Media already handed to a job: never returned twice. */
+const claimed = new Set<string>();
+const cancelled = new Set<string>();
+
+const trim = <T,>(a: T[], max: number) => {
+  if (a.length > max) a.splice(0, a.length - max);
+};
+
+if (ACTIVE)
+  window.addEventListener('message', (ev) => {
+    if (ev.source !== window || ev.origin !== location.origin) return;
+    const m = ev.data as HookMessage;
+    if (!m || m.source !== 'reelbatch-hook') return;
+    onRpc(m);
+  });
+
+const isGenerate = (rpcs: string[]) => rpcs.some((r) => cfg.rpc.imageGenerate.includes(r) || (cfg.rpc.videoGenerate as string[]).includes(r));
+
+// Enum-like error tokens only, case-sensitive: the response also echoes the prompt, and a prompt
+// that mentions "safety" or "quota" must not read as an error.
+const POLICY_RE = /\b(?:UNSAFE|PROHIBITED|BLOCKLIST|RAI_[A-Z_]+|[A-Z_]*(?:POLICY|SAFETY|FILTERED)[A-Z_]*)\b/;
+const CREDITS_RE = /\b(?:RESOURCE_EXHAUSTED|INSUFFICIENT_CREDITS|OUT_OF_CREDITS|NOT_ENOUGH_[A-Z_]+)\b/;
+const LIMIT_RE = /\b(?:RATE_LIMIT[A-Z_]*|TOO_MANY_[A-Z_]+|QUOTA_[A-Z_]+)\b/;
 
 function onRpc(m: HookMessage) {
-  const rpcs = m.rpcids.split(',');
+  const rpcs = (m.rpcids ?? '').split(',');
   if (rpcs.every((r) => cfg.rpc.ignore.includes(r))) return;
-  const generate = rpcs.some((r) => cfg.rpc.imageGenerate.includes(r) || (cfg.rpc.videoGenerate as string[]).includes(r));
-  if (m.status >= 400 && generate) {
-    netErrors.push({ t: m.t, rpc: m.rpcids, reason: m.status === 429 ? 'limit' : 'error', message: `Flow returned HTTP ${m.status}` });
+  const generate = isGenerate(rpcs);
+  const req = generate ? (m.id ?? 0) : 0;
+  if (m.phase === 'start') {
+    if (generate && req) {
+      requests.push({ id: req, t: m.t, claimed: false });
+      trim(requests, 100);
+    }
+    return;
+  }
+  if (generate && (m.status >= 400 || m.status === 0)) {
+    netErrors.push({
+      t: m.t,
+      rpc: m.rpcids,
+      req,
+      ctx: '',
+      reason: m.status === 429 ? 'limit' : 'error',
+      message: m.status ? `Flow returned HTTP ${m.status}` : 'The request to Flow failed (network)'
+    });
+    trim(netErrors, 100);
     return;
   }
   const media = extractMedia(m.body, cfg.mediaUrl);
   const ctx = media.length && m.body.length < 400_000 ? simplify(m.body) : '';
   for (const r of media) {
     const prev = seen.get(r.mediaId);
-    if (!prev) seen.set(r.mediaId, { ...r, t: m.t, rpc: m.rpcids, ctx });
+    if (!prev) seen.set(r.mediaId, { ...r, t: m.t, rpc: m.rpcids, req, ctx });
     else if (prev.kind !== 'video' && r.kind === 'video') seen.set(r.mediaId, { ...prev, ...r });
   }
+  if (seen.size > 3000) for (const k of [...seen.keys()].slice(0, seen.size - 3000)) seen.delete(k);
   if (!generate) return;
   for (const c of parseBatch(m.body)) {
-    if (c.error !== undefined) {
-      netErrors.push({ t: m.t, rpc: c.rpc, reason: 'error', message: `Flow rejected the request (code ${c.error})` });
-      continue;
-    }
     const raw = c.raw;
-    if (/UNSAFE|POLICY|PROHIBITED|FILTERED|BLOCKLIST|RAI_|SAFETY/i.test(raw) && !extractMedia(raw, cfg.mediaUrl).length)
-      netErrors.push({ t: m.t, rpc: c.rpc, reason: 'policy', message: 'Flow blocked this prompt (content policy)' });
-    else if (/RESOURCE_EXHAUSTED|INSUFFICIENT_CREDITS|OUT_OF_CREDITS|NOT_ENOUGH/i.test(raw))
-      netErrors.push({ t: m.t, rpc: c.rpc, reason: 'credits', message: 'Not enough Flow credits' });
-    else if (/RATE_LIMIT|TOO_MANY|QUOTA/i.test(raw)) netErrors.push({ t: m.t, rpc: c.rpc, reason: 'limit', message: 'Flow rate limit reached' });
+    const base = { t: m.t, rpc: c.rpc, req, ctx: raw.length < 400_000 ? simplify(raw) : '' };
+    if (c.error !== undefined) netErrors.push({ ...base, reason: 'error', message: `Flow rejected the request (code ${c.error})` });
+    else if (extractMedia(raw, cfg.mediaUrl).length) continue;
+    else if (POLICY_RE.test(raw)) netErrors.push({ ...base, reason: 'policy', message: 'Flow blocked this prompt (content policy)' });
+    else if (CREDITS_RE.test(raw)) netErrors.push({ ...base, reason: 'credits', message: 'Not enough Flow credits' });
+    else if (LIMIT_RE.test(raw)) netErrors.push({ ...base, reason: 'limit', message: 'Flow rate limit reached' });
   }
+  trim(netErrors, 100);
+}
+
+/** The first generate request sent at or after `since` that no other submit has claimed. */
+function claimRequest(since: number) {
+  const r = requests.find((x) => !x.claimed && x.t >= since);
+  if (!r) return { id: 0 };
+  r.claimed = true;
+  return { id: r.id };
 }
 
 // ---------------- page reading ----------------
@@ -130,20 +202,24 @@ function renderingCount() {
   return $$(cfg.selectors.tile).filter((t) => !t.querySelector(cfg.selectors.tileMedia) && re.test(norm(t.textContent))).length;
 }
 
+const alertEls = () => $$(`${cfg.selectors.alerts}, ${cfg.selectors.dialogs}`).filter((el) => norm(el.textContent).length > 2);
+
 function alertTexts(): string[] {
-  return $$(`${cfg.selectors.alerts}, ${cfg.selectors.dialogs}`)
+  return alertEls()
     .map((el) => norm(el.textContent))
-    .filter((t) => t.length > 2)
     .slice(0, 10);
 }
 
-function failedTiles(): string[] {
+/** Tiles that ended without media and show a failure or policy text (compared by element, not text). */
+function failedTileEls(): HTMLElement[] {
   const fail = rx('failed');
   const policy = rx('policy');
-  return $$(cfg.selectors.tile)
-    .filter((t) => !t.querySelector(cfg.selectors.tileMedia))
-    .map((t) => norm(t.textContent))
-    .filter((t) => !rx('progress').test(t) && (fail.test(t) || policy.test(t)));
+  const progress = rx('progress');
+  return $$(cfg.selectors.tile).filter((t) => {
+    if (t.querySelector(cfg.selectors.tileMedia)) return false;
+    const txt = norm(t.textContent);
+    return !progress.test(txt) && (fail.test(txt) || policy.test(txt));
+  });
 }
 
 function snapshot(): FlowSnapshot {
@@ -209,7 +285,10 @@ async function pickModel(pane: Element, target: string) {
     return list.length ? list : null;
   }, 3000);
   if (!items) throw new Error('Model list did not open');
-  const exact = items.find((i) => labelOf(i).toLowerCase() === want) ?? items.find((i) => labelOf(i).toLowerCase().startsWith(want));
+  const before = labelOf(trigger).toLowerCase();
+  // exact name first; otherwise the shortest name that starts with it ("Veo 3.1 - Fast" over "... [Lower Priority]")
+  const prefixed = items.filter((i) => labelOf(i).toLowerCase().startsWith(want)).sort((a, b) => labelOf(a).length - labelOf(b).length);
+  const exact = items.find((i) => labelOf(i).toLowerCase() === want) ?? prefixed[0];
   if (!exact) {
     const names = items.map(labelOf).join(', ');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -218,6 +297,10 @@ async function pickModel(pane: Element, target: string) {
   if (isDisabled(exact)) throw new Error(`Model "${target}" is locked on your Flow plan`);
   exact.click();
   await step();
+  // The model menu closes on a pick; a label that did not change means the click was lost.
+  const now = $$<HTMLElement>(cfg.selectors.menuTrigger, settingsPane() ?? pane).find(visible);
+  const label = now ? labelOf(now).toLowerCase() : '';
+  if (now && label === before && !label.includes(want)) throw new Error(`Flow did not switch to model "${target}"`);
 }
 
 function readCost(pane: Element): number | undefined {
@@ -249,7 +332,11 @@ async function prepare(s: GenSettings, target: string): Promise<PrepareOutcome> 
     await pickRadio(p, (r) => iconOf(r) === aspectIcon || labelOf(r) === s.aspect, s.aspect);
     if (s.kind === 'video') {
       if (s.resolution && radios(p).some((r) => labelOf(r) === s.resolution)) await pickRadio(p, (r) => labelOf(r) === s.resolution, s.resolution);
-      const dur = radios(p).filter((r) => /^\d+\s*\D{0,8}$/.test(labelOf(r)) && !/^x\d$/.test(labelOf(r)));
+      // seconds options ("4s", "8 с"), not resolutions ("720p", "4K") or counts ("x2")
+      const dur = radios(p).filter((r) => {
+        const l = labelOf(r);
+        return /^\d{1,2}\s*\D{0,8}$/.test(l) && !/^\d+\s*[pk]\b/i.test(l) && !/^x\d$/i.test(l) && parseInt(l, 10) <= 60;
+      });
       if (s.duration && dur.length) await pickRadio(p, (r) => parseInt(labelOf(r), 10) === s.duration, `${s.duration}s`);
     }
     await pickRadio(p, (r) => labelOf(r).toLowerCase() === `x${s.count}`, `x${s.count}`);
@@ -402,50 +489,70 @@ async function clearAttachments() {
 
 async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchOutcome> {
   const known = new Set(c.known);
-  const baseAlerts = new Set(alertTexts());
-  const baseFails = new Set(failedTiles());
+  const baseAlerts = new Set(alertEls());
+  const baseFails = new Set(failedTileEls());
+  // Tiles already on the page are not ours (DOM is used only when the network identified nothing).
+  const baseDom = new Set(domMedia().map((m) => m.mediaId));
   const end = Date.now() + c.timeoutMs;
   let idleSince = 0;
+  const match = simplify(c.prompt).slice(0, 60);
+  const mine = (ctx: string) => !!match && ctx.includes(match);
 
-  // Parallel runs: only accept media whose response mentions this prompt.
-  const match = c.prompt ? simplify(c.prompt).slice(0, 60) : '';
   const fresh = (): FlowResult[] => {
     const byId = new Map<string, FlowResult>();
-    for (const m of seen.values())
-      if (m.t >= c.since - 2000 && !known.has(m.mediaId) && (!match || m.ctx.includes(match)))
-        byId.set(m.mediaId, { mediaId: m.mediaId, url: m.url, kind: m.kind });
-    if (!match) for (const m of domMedia()) if (!known.has(m.mediaId) && !byId.has(m.mediaId)) byId.set(m.mediaId, m);
+    const take = (m: FlowResult) => byId.set(m.mediaId, { mediaId: m.mediaId, url: m.url, kind: m.kind });
+    for (const m of seen.values()) {
+      if (known.has(m.mediaId) || claimed.has(m.mediaId) || m.t < c.since - 2000) continue;
+      // the response to our own generate request, or a non-generate response (status poll) naming our prompt
+      if (m.req && c.req ? m.req === c.req : mine(m.ctx)) take(m);
+    }
+    // Single job in this tab and the network identified nothing: new tiles on the page.
+    if (!byId.size && !c.parallel)
+      for (const m of domMedia()) if (!known.has(m.mediaId) && !baseDom.has(m.mediaId) && !claimed.has(m.mediaId)) take(m);
     const all = [...byId.values()];
     const sameKind = all.filter((m) => m.kind === c.kind);
-    return sameKind.length ? sameKind : c.kind === 'image' ? all : [];
+    return (sameKind.length ? sameKind : c.kind === 'image' ? all : []).slice(0, c.expect);
+  };
+  const done = (o: WatchOutcome): WatchOutcome => {
+    for (const r of o.results) claimed.add(r.mediaId);
+    return o;
   };
 
   for (;;) {
+    if (cancelled.delete(c.id)) return done({ ok: false, reason: 'error', message: 'cancelled', results: fresh() });
     const res = fresh();
-    if (res.length >= c.expect) return { ok: true, results: res.slice(0, Math.max(c.expect, res.length)) };
+    if (res.length >= c.expect) return done({ ok: true, results: res });
 
-    const err = netErrors.find((e) => e.t >= c.since);
-    if (err) return { ok: false, reason: err.reason, message: err.message, results: res };
+    // errors of our own request; without a request id, errors that name our prompt (or any, if alone)
+    const err = netErrors.find((e) => e.t >= c.since && (c.req ? e.req === c.req : !e.req && (!c.parallel || mine(e.ctx))));
+    if (err) return done({ ok: false, reason: err.reason, message: err.message, results: res });
 
-    const alert = alertTexts().find((t) => !baseAlerts.has(t) && (classify(t) !== 'error' || rx('failed').test(t)));
+    const alert = alertEls()
+      .filter((el) => !baseAlerts.has(el))
+      .map((el) => norm(el.textContent))
+      .find((t) => (classify(t) !== 'error' ? true : !c.parallel && rx('failed').test(t)));
     if (alert) {
       const reason = classify(alert);
-      if (reason !== 'error' || !res.length) return { ok: false, reason, message: alert.slice(0, 200), results: res };
+      if (reason !== 'error' || !res.length) return done({ ok: false, reason, message: alert.slice(0, 200), results: res });
     }
-    const tileFail = failedTiles().find((t) => !baseFails.has(t));
+    // a failed tile; in a shared tab only one that shows our prompt
+    const tileFail = failedTileEls()
+      .filter((el) => !baseFails.has(el))
+      .map((el) => norm(el.textContent))
+      .find((t) => !c.parallel || mine(simplify(t)));
     if (tileFail && renderingCount() === 0) {
-      if (res.length) return { ok: true, results: res, partial: true };
-      return { ok: false, reason: classify(tileFail), message: tileFail.slice(0, 200), results: res };
+      if (res.length) return done({ ok: true, results: res, partial: true });
+      return done({ ok: false, reason: classify(tileFail), message: tileFail.slice(0, 200), results: res });
     }
 
     // Some outputs arrived and nothing is rendering any more: accept a partial set.
     if (res.length && renderingCount() === 0) {
       idleSince ||= Date.now();
-      if (Date.now() - idleSince > 8000) return { ok: true, results: res, partial: true };
+      if (Date.now() - idleSince > 8000) return done({ ok: true, results: res, partial: true });
     } else idleSince = 0;
 
     if (Date.now() > end) {
-      if (res.length) return { ok: true, results: res, partial: true };
+      if (res.length) return done({ ok: true, results: res, partial: true });
       return { ok: false, reason: 'timeout', message: 'Flow did not return a result in time', results: [] };
     }
     await sleep(700);
@@ -528,13 +635,15 @@ function health(): HealthReport {
   check('settings', direct ? visible($(S.settingsTrigger)) : !!$(S.agentChip), direct ? undefined : 'checked after Agent mode is off');
   const hook = document.documentElement.dataset.rbHook === '1';
   check('hook', hook, hook ? undefined : 'Reload the Flow tab once so Reelbatch can observe results');
+  if (document.visibilityState === 'hidden')
+    check('visible', true, 'This Flow tab is in the background. Keep it in its own window so Chrome does not slow it down.');
   const signedIn = !/accounts\.google\.com/.test(location.href) && !!document.querySelector('img[src*="googleusercontent"], [aria-label*="@"]');
   return { ok: items.every((i) => i.ok), url: location.href, signedIn, items, configVersion: cfg.version };
 }
 
 // ---------------- dispatcher ----------------
 
-chrome.runtime.onMessage.addListener((msg: FlowCommand | { type: 'config'; config: FlowConfig }, _sender, reply) => {
+if (ACTIVE) chrome.runtime.onMessage.addListener((msg: FlowCommand | { type: 'config'; config: FlowConfig }, _sender, reply) => {
   const run = async (): Promise<unknown> => {
     switch (msg.type) {
       case 'config':
@@ -560,6 +669,11 @@ chrome.runtime.onMessage.addListener((msg: FlowCommand | { type: 'config'; confi
         return clearAttachments();
       case 'watch':
         return watch(msg);
+      case 'cancelWatch':
+        cancelled.add(msg.id);
+        return { ok: true };
+      case 'claimRequest':
+        return claimRequest(msg.since);
       case 'download':
         return download(msg.mediaId, msg.quality);
       case 'dismiss':

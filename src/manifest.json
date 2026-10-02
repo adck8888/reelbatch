@@ -10,7 +10,7 @@
   "action": { "default_title": "Reelbatch", "default_icon": { "16": "icons/16.png", "32": "icons/32.png" } },
   "side_panel": { "default_path": "panel.html" },
   "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["sidePanel", "storage", "unlimitedStorage", "downloads", "alarms", "notifications", "scripting", "debugger", "offscreen"],
+  "permissions": ["sidePanel", "storage", "unlimitedStorage", "downloads", "alarms", "notifications", "scripting", "debugger", "offscreen", "power"],
   "host_permissions": [
     "https://flow.google.com/*",
     "https://flow-content.google/*",
@@ -18,9 +18,11 @@
     "https://api.replicate.com/*",
     "https://replicate.delivery/*",
     "https://api.lemonsqueezy.com/*",
-    "https://raw.githubusercontent.com/*"
+    "https://raw.githubusercontent.com/*",
+    "https://*.googleusercontent.com/*",
+    "https://storage.googleapis.com/*"
   ],
-  "optional_host_permissions": ["https://docs.google.com/*", "https://*.googleusercontent.com/*", "https://storage.googleapis.com/*"],
+  "optional_host_permissions": ["https://docs.google.com/*"],
   "content_scripts": [
     { "matches": ["https://flow.google.com/*"], "js": ["flow-page.js"], "world": "MAIN", "run_at": "document_start" },
     { "matches": ["https://flow.google.com/*"], "js": ["flow-content.js"], "run_at": "document_idle" }

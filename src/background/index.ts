@@ -1,6 +1,6 @@
 import type { PanelRequest } from '../shared/messages';
 import type { Schedule } from '../shared/types';
-import { get, log, set } from '../shared/storage';
+import { get, getQueue, log, set } from '../shared/storage';
 import { isPro } from '../shared/license';
 import { errText } from '../shared/util';
 import { flowConfig } from './config';
@@ -20,15 +20,24 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => 
 
 chrome.runtime.onInstalled.addListener(async (d) => {
   chrome.alarms.create(ALARM_LICENSE, { periodInMinutes: 12 * 60 });
+  await rearmSchedule();
   if (d.reason === 'install') {
     // Open Flow so the first run has somewhere to work; the side panel explains the rest.
     await chrome.tabs.create({ url: FLOW_URL });
   }
 });
 
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(async () => {
   chrome.alarms.create(ALARM_LICENSE, { periodInMinutes: 12 * 60 });
+  await rearmSchedule();
 });
+
+/** An update clears alarms, and Chrome may have been closed at the scheduled time. */
+async function rearmSchedule() {
+  const s = await get('schedule');
+  if (!s?.enabled || (await chrome.alarms.get(ALARM_SCHEDULE))) return;
+  chrome.alarms.create(ALARM_SCHEDULE, { when: Math.max(s.at, Date.now() + 60_000) });
+}
 
 // The worker may have been killed mid-run; mark that run as interrupted and drop stale debugger sessions.
 void runner.restore();
@@ -40,12 +49,18 @@ chrome.alarms.onAlarm.addListener(async (a) => {
   if (a.name === ALARM_SCHEDULE) await fireSchedule();
 });
 
+/** A run that was due while Chrome was closed starts only if it is at most this late. */
+const MAX_LATE = 2 * 60 * 60_000;
+
 async function fireSchedule() {
   const s = await get('schedule');
   if (!s?.enabled) return;
   await set('schedule', { ...s, enabled: false });
   try {
-    await runner.start(s.queueId, s.scope);
+    if (Date.now() - s.at > MAX_LATE) throw new Error('Chrome was closed at the scheduled time, so the run was skipped. Schedule it again.');
+    // "what is left" of a queue that already finished means the whole queue again
+    const scope = s.scope.kind === 'pending' && !(await runner.estimate(s.queueId, s.scope)).rows ? { kind: 'all' as const } : s.scope;
+    await runner.start(s.queueId, scope);
     await log('info', 'Scheduled run started');
   } catch (e) {
     await log('error', `Scheduled run could not start: ${errText(e)}`);
@@ -54,12 +69,13 @@ async function fireSchedule() {
 }
 
 async function setSchedule(s: Schedule | null) {
+  if (s?.enabled) {
+    if (!Number.isFinite(s.at) || s.at <= Date.now()) throw new Error('Pick a time in the future');
+    if (!(await getQueue(s.queueId))) throw new Error('Pick a queue to run');
+  }
   await chrome.alarms.clear(ALARM_SCHEDULE);
   await set('schedule', s);
-  if (s?.enabled) {
-    if (s.at <= Date.now()) throw new Error('Pick a time in the future');
-    chrome.alarms.create(ALARM_SCHEDULE, { when: s.at });
-  }
+  if (s?.enabled) chrome.alarms.create(ALARM_SCHEDULE, { when: s.at });
   return { ok: true };
 }
 

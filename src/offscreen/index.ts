@@ -69,16 +69,27 @@ async function zip(files: { name: string; url: string }[], extra: { name: string
     used.add(name);
     return name;
   };
+  const missing: string[] = [];
   for (const f of files) {
     try {
       out[uniq(f.name)] = new Uint8Array(await (await loadBlob(f.url)).arrayBuffer());
     } catch {
-      /* expired URL: skip the file, the run log still lists it */
+      missing.push(f.name); // expired link: listed in MISSING.txt, the file is in the Downloads folder
     }
   }
   const enc = new TextEncoder();
   for (const e of extra) out[uniq(e.name)] = enc.encode(e.text);
-  return keep(new Blob([zipSync(out, { level: 0 })], { type: 'application/zip' }));
+  if (missing.length)
+    out[uniq('MISSING.txt')] = enc.encode(
+      [
+        'These files could not be fetched again (Flow and Replicate links expire after a while).',
+        'They were saved to your Downloads folder during the run:',
+        '',
+        ...missing,
+        ''
+      ].join(String.fromCharCode(13, 10))
+    );
+  return { url: keep(new Blob([zipSync(out, { level: 0 })], { type: 'application/zip' })), missing };
 }
 
 chrome.runtime.onMessage.addListener((m: Msg, _s, reply) => {
@@ -90,7 +101,7 @@ chrome.runtime.onMessage.addListener((m: Msg, _s, reply) => {
       case 'blobUrlFromUrl':
         return { url: keep(await loadBlob(m.url)) };
       case 'zip':
-        return { url: await zip(m.files, m.extra) };
+        return zip(m.files, m.extra);
       case 'frame':
         return { dataUrl: await frame(m.url, m.which) };
       case 'revoke':

@@ -10,7 +10,11 @@ const ENGINES: { value: EngineId; label: string }[] = [
   { value: 'replicate', label: 'Replicate' }
 ];
 
-const MODE_LABEL: Record<VideoMode, string> = { text: 'Text → video', frames: 'Frames (start / end)', ingredients: 'Ingredients (references)' };
+/** Built on each call so the labels follow the UI language. */
+const modeLabel = (v: VideoMode): string => ({ text: t('Text → video'), frames: t('Frames (start / end)'), ingredients: t('Ingredients (references)') })[v];
+
+/** Seeds are 32-bit signed integers on every provider. */
+const MAX_SEED = 2147483647;
 
 export function costLabel(s: GenSettings) {
   const c = estimateCost(s);
@@ -66,7 +70,7 @@ export function GenEditor({ value, onChange, compact }: { value: GenSettings; on
       )}
       {s.kind === 'video' && m?.videoModes && m.videoModes.length > 1 && (
         <Field label={t('Video mode')}>
-          <Select<VideoMode> value={s.videoMode} options={m.videoModes.map((v) => ({ value: v, label: t(MODE_LABEL[v]) }))} onChange={(videoMode) => set({ videoMode })} />
+          <Select<VideoMode> value={s.videoMode} options={m.videoModes.map((v) => ({ value: v, label: modeLabel(v) }))} onChange={(videoMode) => set({ videoMode })} />
         </Field>
       )}
       {m?.durations && (
@@ -94,7 +98,7 @@ export function GenEditor({ value, onChange, compact }: { value: GenSettings; on
             <input type="text" value={s.negative ?? ''} placeholder={t('What to avoid (optional)')} onChange={(e) => set({ negative: (e.target as HTMLInputElement).value })} />
           </Field>
           <Field label={t('Seed')}>
-            <NumberInput value={s.seed ?? 0} min={0} onChange={(v) => set({ seed: v || undefined })} width={110} />
+            <NumberInput value={s.seed ?? 0} min={0} max={MAX_SEED} integer onChange={(v) => set({ seed: v || undefined })} width={110} />
           </Field>
         </>
       )}

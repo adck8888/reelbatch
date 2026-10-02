@@ -32,5 +32,5 @@ export async function flowConfig(force = false): Promise<FlowConfig> {
 /** Newer remote configs win; a remote config that needs a newer extension is ignored. */
 function pick(remote: FlowConfig): FlowConfig {
   if (!versionAtLeast(__VERSION__, remote.minExtension ?? '0.0.0')) return BUNDLED_CONFIG;
-  return remote.version >= BUNDLED_CONFIG.version ? mergeConfig(remote) : BUNDLED_CONFIG;
+  return versionAtLeast(remote.version, BUNDLED_CONFIG.version) ? mergeConfig(remote) : BUNDLED_CONFIG;
 }

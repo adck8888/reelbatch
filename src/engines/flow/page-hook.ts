@@ -20,9 +20,12 @@
     }
   };
 
-  const post = (url: string, status: number, body: string) => {
+  // Each request gets a sequence number: a 'start' message is posted when it is sent and an 'end'
+  // message with the response, so the content script can tie a response to the submit that caused it.
+  let seq = 0;
+  const post = (id: number, phase: 'start' | 'end', url: string, status: number, body: string) => {
     window.postMessage(
-      { source: 'reelbatch-hook', rpcids: rpcOf(url), status, body: body.length > MAX ? body.slice(0, MAX) : body, t: Date.now() },
+      { source: 'reelbatch-hook', id, phase, rpcids: rpcOf(url), status, body: body.length > MAX ? body.slice(0, MAX) : body, t: Date.now() },
       location.origin
     );
   };
@@ -38,10 +41,12 @@
   XHR.send = function (this: XMLHttpRequest & { __rbUrl?: string }, body?: Document | XMLHttpRequestBodyInit | null) {
     const url = this.__rbUrl ?? '';
     if (interesting(url)) {
+      const id = ++seq;
+      post(id, 'start', url, 0, '');
       this.addEventListener('loadend', () => {
         try {
           const text = this.responseType === '' || this.responseType === 'text' ? this.responseText : '';
-          post(url, this.status, text);
+          post(id, 'end', url, this.status, text);
         } catch {
           /* ignore */
         }
@@ -52,13 +57,22 @@
 
   const origFetch = window.fetch;
   window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
-    const res = await origFetch.call(this, input, init);
+    let url = '';
     try {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (interesting(url)) res.clone().text().then((t) => post(url, res.status, t), () => {});
+      url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     } catch {
       /* ignore */
     }
+    const id = interesting(url) ? ++seq : 0;
+    if (id) post(id, 'start', url, 0, '');
+    let res: Response;
+    try {
+      res = await origFetch.call(this, input, init);
+    } catch (e) {
+      if (id) post(id, 'end', url, 0, '');
+      throw e;
+    }
+    if (id) res.clone().text().then((t) => post(id, 'end', url, res.status, t), () => post(id, 'end', url, res.status, ''));
     return res;
   };
   // Flow uploads through a file input it creates and clicks. While the content script attaches

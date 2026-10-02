@@ -23,6 +23,13 @@ describe('characters', () => {
     expect(unknownMentions('@Bob meets @Mia.', [mia])).toEqual(['Bob']);
     expect(mentionsIn('hi @Mia.')).toEqual(['Mia']);
   });
+
+  it('does not treat email addresses as mentions', () => {
+    expect(unknownMentions('mail a@b.com or @Bob', [mia])).toEqual(['Bob']);
+    expect(mentionsIn('contact me@mia.com')).toEqual([]);
+    expect(resolveMentions('(@Mia) and mia@mia.com', [mia]).prompt).toBe('(Mia (red hair, green raincoat)) and mia@mia.com');
+    expect(mentionsIn('@Mia first, "@Bob" quoted')).toEqual(['Mia', 'Bob']);
+  });
 });
 
 describe('license', () => {

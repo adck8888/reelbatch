@@ -1,6 +1,7 @@
 import type { Character } from './types';
 
-const MENTION = /@([\p{L}\p{N}_][\p{L}\p{N}_.-]*)/gu;
+// "@" must open a word (start, whitespace or opening punctuation), so "a@b.com" is not a mention
+const MENTION = /(?<=^|[\s([{"'“‘«])@([\p{L}\p{N}_][\p{L}\p{N}_.-]*)/gu;
 
 const key = (s: string) => s.toLowerCase().replace(/[\s_.-]+/g, '');
 // allow "@Anna." at the end of a sentence

@@ -2,12 +2,12 @@ import { useMemo, useState } from 'preact/hooks';
 import type { Row } from '../../shared/types';
 import type { HelperMode } from '../../shared/messages';
 import {
-  type BuildOptions, type Field as MapField, type SplitMode, type Table,
+  type BuildOptions, type Field as MapField, type ImportRow, type SplitMode, type Table,
   guessMapping, kindOfFile, readCsv, readDocx, readJson, readXlsx, rowsFromPrompts, rowsFromTable, sheetsCsvUrl, splitPrompts
 } from '../../shared/parse';
 import { errText } from '../../shared/util';
 import { t } from '../i18n';
-import { editQueue, pro } from '../store';
+import { editQueue, pro, queue } from '../store';
 import { Button, Field, Modal, NumberInput, ProBadge, Select, Toggle, call, toast } from '../ui';
 
 type Source = 'paste' | 'file' | 'sheets' | 'helper';
@@ -31,12 +31,18 @@ const FIELDS: { value: MapField; label: string }[] = [
   { value: 'folder', label: 'Folder' }
 ];
 
-function addRows(rows: Row[], replace: boolean) {
-  if (!rows.length) return toast(t('No prompts found'), 'error');
+/** Adds (or swaps in) the rows; returns false when nothing was done, so the dialog stays open. */
+function addRows(rows: ImportRow[], replace: boolean): boolean {
+  if (!rows.length) return (toast(t('No prompts found'), 'error'), false);
+  const existing = queue.value?.rows.length ?? 0;
+  if (replace && existing > 0 && !confirm(t('Replace the {n} rows in this queue with the imported ones?', { n: existing }))) return false;
+  // import warnings are only for the preview; they are not part of a queue row
+  const clean: Row[] = rows.map(({ warnings: _w, ...r }) => r);
   editQueue((q) => {
-    q.rows = replace ? rows : [...q.rows, ...rows];
+    q.rows = replace ? clean : [...q.rows, ...clean];
   });
   toast(t('Added {n} prompts', { n: rows.length }), 'ok');
+  return true;
 }
 
 export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => void; initial?: Source }) {
@@ -98,8 +104,14 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
     }
   };
 
-  const rows = src === 'paste' ? pasted : tableRows;
+  const rows: ImportRow[] = src === 'paste' ? pasted : tableRows;
   const canAdd = rows.length > 0 && src !== 'helper';
+  const warned = rows.filter((r) => r.warnings?.length).length;
+  /** The first rows, plus any later row that has warnings, so none of them goes unseen. */
+  const previewRows = rows
+    .map((r, i) => ({ r, i }))
+    .filter(({ r, i }) => i < 8 || r.warnings?.length)
+    .slice(0, 40);
 
   return (
     <Modal
@@ -111,10 +123,10 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
           <>
             <span class="muted">{t('{n} rows', { n: rows.length })}</span>
             <span class="grow" />
-            <Button disabled={!canAdd} onClick={() => (addRows(rows, true), onClose())}>
+            <Button disabled={!canAdd} onClick={() => addRows(rows, true) && onClose()}>
               {t('Replace queue')}
             </Button>
-            <Button variant="primary" disabled={!canAdd} onClick={() => (addRows(rows, false), onClose())}>
+            <Button variant="primary" disabled={!canAdd} onClick={() => addRows(rows, false) && onClose()}>
               {t('Add to queue')}
             </Button>
           </>
@@ -181,10 +193,11 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
           <p class="muted">{t('Share the sheet as “Anyone with the link can view”, then paste its link. The first row must be column names.')}</p>
           <div class="row-wrap">
             <input type="url" class="grow" value={sheetUrl} placeholder="https://docs.google.com/spreadsheets/d/…" onInput={(e) => setSheetUrl((e.target as HTMLInputElement).value)} />
-            <Button variant="primary" disabled={!pro.value || busy} onClick={loadSheet}>
+            <Button variant="primary" disabled={!pro.value || busy} title={pro.value ? undefined : t('Google Sheets import is a Pro feature')} onClick={loadSheet}>
               {t('Load')}
             </Button>
           </div>
+          {!pro.value && <span class="hint">{t('Google Sheets import is a Pro feature')}</span>}
         </div>
       )}
 
@@ -193,6 +206,7 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
           <div class="row-wrap">
             <b>{t('Map columns')}</b>
             <span class="muted">{t('{n} rows in the file', { n: table.rows.length })}</span>
+            {warned > 0 && <span class="warn">· {t('{n} rows with warnings', { n: warned })}</span>}
             <span class="grow" />
             <Button small variant="ghost" onClick={() => setTable(null)}>
               {t('Choose another')}
@@ -235,10 +249,15 @@ export function ImportDialog({ onClose, initial = 'paste' }: { onClose: () => vo
 
       {src !== 'helper' && rows.length > 0 && (
         <ol class="preview">
-          {rows.slice(0, 8).map((r) => (
-            <li key={r.id}>{r.prompt}</li>
+          {previewRows.map(({ r, i }) => (
+            <li key={r.id} value={i + 1}>
+              <span class="pv-prompt">{r.prompt}</span>
+              {r.warnings?.map((w) => (
+                <span key={w} class="pv-warn">⚠ {w}</span>
+              ))}
+            </li>
           ))}
-          {rows.length > 8 && <li class="muted">… {t('and {n} more', { n: rows.length - 8 })}</li>}
+          {rows.length > previewRows.length && <li class="muted">… {t('and {n} more', { n: rows.length - previewRows.length })}</li>}
         </ol>
       )}
     </Modal>

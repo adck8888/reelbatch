@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { GenSettings, Row, RowRun, RunScope } from '../../shared/types';
 import type { Estimate } from '../../shared/messages';
 import { effectiveSettings, modelById } from '../../shared/models';
@@ -8,27 +8,31 @@ import { unknownMentions } from '../../shared/characters';
 import { formatDuration } from '../../shared/util';
 import { PRO } from '../../shared/license';
 import { t } from '../i18n';
-import { characters, createQueue, editQueue, pro, queue, queueIndex, run, running, selected, switchQueue, tab, usedToday } from '../store';
+import { characters, createQueue, editQueue, license, pro, queue, queueIndex, run, running, selected, switchQueue, tab, usedToday } from '../store';
 import { Button, Field, Icon, Modal, ProBadge, Select, Thumb, Toggle, call, imagesFromDrop, pickImages, toast } from '../ui';
 import { GenEditor, costLabel, diffSettings } from './GenEditor';
 import { ImportDialog } from './Import';
 
-const STATUS_LABEL: Record<RowRun['status'], string> = {
-  queued: 'Queued',
-  waiting: 'Waiting',
-  sending: 'Sending',
-  rendering: 'Rendering',
-  downloading: 'Saving',
-  done: 'Done',
-  failed: 'Failed',
-  skipped: 'Skipped'
-};
+/** Built on each call so the labels follow the UI language. */
+const statusLabel = (s: RowRun['status']): string =>
+  ({
+    queued: t('Queued'),
+    waiting: t('Waiting'),
+    sending: t('Sending'),
+    rendering: t('Rendering'),
+    downloading: t('Saving'),
+    done: t('Done'),
+    failed: t('Failed'),
+    skipped: t('Skipped')
+  })[s];
 
 export function QueueView() {
   const q = queue.value;
   const [importing, setImporting] = useState<false | 'paste' | 'helper'>(false);
-  const [editing, setEditing] = useState<Row | null>(null);
+  const [editing, setEditing] = useState<{ row: Row; isNew?: boolean } | null>(null);
   const [showDefaults, setShowDefaults] = useState(false);
+  /** Bumped to remount the queue picker when "+ New queue" is cancelled, so it shows the active queue again. */
+  const [pickerKey, setPickerKey] = useState(0);
   if (!q) return null;
   const sel = selected.value;
   const r = run.value;
@@ -52,12 +56,14 @@ export function QueueView() {
     <div class="queue-view">
       <div class="toolbar">
         <Select
+          key={pickerKey}
           value={q.id}
           options={[...queueIndex.value.map((x) => ({ value: x.id, label: x.name })), { value: '__new', label: `+ ${t('New queue')}` }]}
           onChange={async (id) => {
             if (id === '__new') {
               const name = prompt(t('Name of the new queue'), `${t('Queue')} ${queueIndex.value.length + 1}`);
-              if (name) await createQueue({ ...newQueue(name.trim() || 'Queue'), defaults: { ...q.defaults } });
+              if (name) await createQueue({ ...newQueue(name.trim() || t('Queue')), defaults: { ...q.defaults } });
+              else setPickerKey((k) => k + 1);
             } else await switchQueue(id);
           }}
         />
@@ -70,7 +76,7 @@ export function QueueView() {
           await deleteQueue(q.id);
           const next = queueIndex.value.find((x) => x.id !== q.id);
           if (next) await switchQueue(next.id);
-          else await createQueue(newQueue('Queue 1'));
+          else await createQueue(newQueue(`${t('Queue')} 1`));
         }} />
         <span class="grow" />
         <Button small icon="spark" onClick={() => setImporting('helper')}>
@@ -138,7 +144,7 @@ export function QueueView() {
                 defaults={q.defaults}
                 checked={sel.has(row.id)}
                 onCheck={(on) => toggleSel(row.id, on)}
-                onEdit={() => setEditing(row)}
+                onEdit={() => setEditing({ row })}
                 onMove={(d) => move(i, d)}
                 onDuplicate={() => editQueue((x) => x.rows.splice(i + 1, 0, { ...structuredClone(row), id: crypto.randomUUID() }))}
                 onDelete={() => editQueue((x) => void x.rows.splice(i, 1))}
@@ -150,7 +156,7 @@ export function QueueView() {
           <Button small variant="ghost" icon="plus" class="add-row" onClick={() => {
             const row = newRow({ prompt: '' });
             editQueue((x) => void x.rows.push(row));
-            setEditing(row);
+            setEditing({ row, isNew: true });
           }}>
             {t('Add a row')}
           </Button>
@@ -159,7 +165,18 @@ export function QueueView() {
 
       <RunBar />
       {importing && <ImportDialog initial={importing} onClose={() => setImporting(false)} />}
-      {editing && <RowEditor row={editing} onClose={() => setEditing(null)} />}
+      {editing && (
+        <RowEditor
+          row={editing.row}
+          onClose={(saved) => {
+            // a row added with "Add a row" and cancelled before it got a prompt is dropped again
+            if (!saved && editing.isNew) {
+              editQueue((x) => void (x.rows = x.rows.filter((r) => r.id !== editing.row.id || r.prompt.trim())));
+            }
+            setEditing(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -201,6 +218,7 @@ function RowItem(p: {
   const overridden = Object.keys(row.overrides).length > 0;
   const unknown = unknownMentions(row.prompt, characters.value);
   const status = rr?.status;
+  const [errOpen, setErrOpen] = useState(false);
   return (
     <li class={`row ${row.enabled ? '' : 'off'} ${status ?? ''}`}>
       <input type="checkbox" checked={p.checked} onChange={(e) => p.onCheck((e.target as HTMLInputElement).checked)} aria-label={t('Select row {n}', { n: p.n })} />
@@ -214,7 +232,7 @@ function RowItem(p: {
           onChange={(e) => p.onPrompt((e.target as HTMLTextAreaElement).value)}
         />
         <div class="row-meta">
-          {status && <span class={`pill ${status}`}>{t(STATUS_LABEL[status])}</span>}
+          {status && <span class={`pill ${status}`}>{statusLabel(status)}</span>}
           {overridden && (
             <span class="tag" title={t('This row has its own settings')}>
               <Icon name={eff.kind === 'video' ? 'video' : 'image'} size={12} /> {modelById(eff.model)?.label} · {eff.aspect}
@@ -226,7 +244,19 @@ function RowItem(p: {
           {row.refs.slice(0, 4).map((id) => <Thumb key={id} id={id} size={20} />)}
           {row.refs.length > 4 && <span class="muted">+{row.refs.length - 4}</span>}
           {unknown.length > 0 && <span class="tag warn" title={t('Add these characters in the Characters tab')}>@{unknown.join(', @')}?</span>}
-          {rr?.error && <span class={`err ${status === 'done' ? 'soft' : ''}`} title={rr.error}>{rr.error}</span>}
+          {rr?.error && (
+            <span
+              class={`err ${status === 'done' ? 'soft' : ''} ${errOpen ? 'open' : ''}`}
+              title={errOpen ? t('Click to collapse') : rr.error}
+              role="button"
+              tabIndex={0}
+              aria-expanded={errOpen}
+              onClick={() => setErrOpen(!errOpen)}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setErrOpen(!errOpen))}
+            >
+              {rr.error}
+            </span>
+          )}
           {rr?.results.map((res, i) => (
             <a key={i} class="result" href={res.url || undefined} target="_blank" rel="noreferrer" title={res.file ?? res.url}>
               <Icon name={res.kind === 'video' ? 'video' : 'image'} size={12} />
@@ -236,26 +266,64 @@ function RowItem(p: {
       </div>
       <div class="row-actions">
         <Button small variant="ghost" icon="edit" title={t('Edit row')} onClick={p.onEdit} />
-        <details class="menu">
-          <summary class="btn ghost sm icon-only" aria-label={t('More')}>⋯</summary>
-          <div class="menu-pop">
-            <button type="button" onClick={p.onToggle}>{row.enabled ? t('Disable') : t('Enable')}</button>
-            <button type="button" onClick={() => p.onMove(-1)}>{t('Move up')}</button>
-            <button type="button" onClick={() => p.onMove(1)}>{t('Move down')}</button>
-            <button type="button" onClick={p.onDuplicate}>{t('Duplicate')}</button>
-            <button type="button" class="danger" onClick={p.onDelete}>{t('Delete')}</button>
-          </div>
-        </details>
+        <RowMenu
+          items={[
+            { label: row.enabled ? t('Disable') : t('Enable'), run: p.onToggle },
+            { label: t('Move up'), run: () => p.onMove(-1) },
+            { label: t('Move down'), run: () => p.onMove(1) },
+            { label: t('Duplicate'), run: p.onDuplicate },
+            { label: t('Delete'), run: p.onDelete, danger: true }
+          ]}
+        />
       </div>
     </li>
   );
 }
 
+/** The row's "⋯" menu: closes after any item, on Esc and on a click outside it. */
+function RowMenu({ items }: { items: { label: string; run: () => void; danger?: boolean }[] }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => ref.current && (ref.current.open = false);
+    const onDown = (e: Event) => ref.current && !ref.current.contains(e.target as Node) && close();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <details class="menu" ref={ref} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary class="btn ghost sm icon-only" aria-label={t('More')}>⋯</summary>
+      <div class="menu-pop">
+        {items.map((it) => (
+          <button
+            type="button"
+            key={it.label}
+            class={it.danger ? 'danger' : undefined}
+            onClick={() => {
+              if (ref.current) ref.current.open = false;
+              it.run();
+            }}
+          >
+            {it.label}
+          </button>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 // ---------- row editor ----------
 
-function RowEditor({ row: initial, onClose }: { row: Row; onClose: () => void }) {
+function RowEditor({ row: initial, onClose }: { row: Row; onClose: (saved: boolean) => void }) {
   const q = queue.value!;
-  const [row, setRow] = useState<Row>(structuredClone(q.rows.find((r) => r.id === initial.id) ?? initial));
+  const [row, setRow] = useState<Row>(() => structuredClone(q.rows.find((r) => r.id === initial.id) ?? initial));
+  const [original] = useState(() => JSON.stringify(row));
   const eff = effectiveSettings(q.defaults, row.overrides);
   const model = modelById(eff.model);
   const isPro = pro.value;
@@ -264,19 +332,24 @@ function RowEditor({ row: initial, onClose }: { row: Row; onClose: () => void })
       const i = x.rows.findIndex((r) => r.id === row.id);
       if (i >= 0) x.rows[i] = row;
     });
-    onClose();
+    onClose(true);
+  };
+  /** Esc, the backdrop, the close button and Cancel all land here: ask before throwing edits away. */
+  const cancel = () => {
+    if (JSON.stringify(row) !== original && !confirm(t('Discard your changes to this row?'))) return;
+    onClose(false);
   };
   const addRefs = async (ids: string[]) => setRow({ ...row, refs: [...row.refs, ...ids].slice(0, model?.maxRefs ?? 14) });
 
   return (
     <Modal
       title={t('Edit row')}
-      onClose={onClose}
+      onClose={cancel}
       wide
       footer={
         <>
           <span class="grow" />
-          <Button onClick={onClose}>{t('Cancel')}</Button>
+          <Button onClick={cancel}>{t('Cancel')}</Button>
           <Button variant="primary" onClick={save}>
             {t('Save')}
           </Button>
@@ -306,7 +379,9 @@ function RowEditor({ row: initial, onClose }: { row: Row; onClose: () => void })
         {eff.kind === 'video' && eff.videoMode === 'frames' ? (
           <div class="row-wrap">
             <FrameSlot label={t('Start frame')} id={row.startFrame} onChange={(id) => setRow({ ...row, startFrame: id })} />
-            <FrameSlot label={t('End frame (optional)')} id={row.endFrame} onChange={(id) => setRow({ ...row, endFrame: id })} />
+            {!modelById(eff.model)?.startFrameOnly && (
+              <FrameSlot label={t('End frame (optional)')} id={row.endFrame} onChange={(id) => setRow({ ...row, endFrame: id })} />
+            )}
           </div>
         ) : (
           <div
@@ -349,7 +424,7 @@ function RowEditor({ row: initial, onClose }: { row: Row; onClose: () => void })
         )}
       </div>
 
-      <div class="sub row-wrap">
+      <div class="sub name-fields">
         <Field label={t('File name')} hint={t('Template, e.g. {n}_{prompt30}. Empty = queue default')}>
           <input type="text" value={row.filename ?? ''} onInput={(e) => setRow({ ...row, filename: (e.target as HTMLInputElement).value || undefined })} />
         </Field>
@@ -392,7 +467,22 @@ function RunBar() {
   const mine = r.queueId === q.id;
   const active = running.value;
   const [scopeKind, setScopeKind] = useState<RunScope['kind']>('all');
-  const [range, setRange] = useState({ from: 1, to: q.rows.length || 1 });
+  const n = Math.max(1, q.rows.length);
+  const [range, setRange] = useState({ from: 1, to: n });
+  /** Until the user edits the range it follows the row count; after that it is only clamped to it. */
+  const [rangeEdited, setRangeEdited] = useState(false);
+  useEffect(() => {
+    setRange((cur) => (rangeEdited ? { from: Math.min(cur.from, n), to: Math.min(cur.to, n) } : { from: 1, to: n }));
+  }, [n]);
+  const setEdge = (edge: 'from' | 'to', input: HTMLInputElement) => {
+    const v = Math.min(n, Math.max(1, Math.round(parseFloat(input.value)) || 1));
+    let next = { ...range, [edge]: v };
+    if (next.from > next.to) next = { from: next.to, to: next.from };
+    // write back even when the state does not change (e.g. "-3" clamped to the 1 already there)
+    input.value = String(next[edge]);
+    setRangeEdited(true);
+    setRange(next);
+  };
   const [est, setEst] = useState<Estimate | null>(null);
   const [now, setNow] = useState(Date.now());
 
@@ -422,6 +512,10 @@ function RunBar() {
   const eta = finished > 0 && total > finished ? (elapsed / finished) * (total - finished) : NaN;
 
   const start = () => call({ type: 'run:start', queueId: q.id, scope });
+  const startTrial = async () => {
+    if (!confirm(t('Start the {n}-day Pro trial now?', { n: PRO.trialDays }))) return;
+    await call({ type: 'license:trial' }, t('Trial started: 7 days of Pro'));
+  };
 
   return (
     <div class="runbar">
@@ -481,7 +575,7 @@ function RunBar() {
               value={scopeKind}
               options={[
                 { value: 'all', label: t('All rows') },
-                { value: 'selected', label: t('Selected ({n})', { n: selected.value.size }), disabled: !selected.value.size },
+                { value: 'selected', label: t('Selected ({n})', { n: selected.value.size }) },
                 { value: 'failed', label: t('Failed only') },
                 { value: 'pending', label: t('Not finished') },
                 { value: 'range', label: t('Range…') }
@@ -490,9 +584,9 @@ function RunBar() {
             />
             {scopeKind === 'range' && (
               <span class="range">
-                <input type="number" min={1} value={range.from} onChange={(e) => setRange({ ...range, from: +(e.target as HTMLInputElement).value || 1 })} />
+                <input type="number" min={1} max={n} step={1} value={range.from} aria-label={t('From row')} onChange={(e) => setEdge('from', e.currentTarget as HTMLInputElement)} />
                 –
-                <input type="number" min={1} value={range.to} onChange={(e) => setRange({ ...range, to: +(e.target as HTMLInputElement).value || 1 })} />
+                <input type="number" min={1} max={n} step={1} value={range.to} aria-label={t('To row')} onChange={(e) => setEdge('to', e.currentTarget as HTMLInputElement)} />
               </span>
             )}
             <span class="grow" />
@@ -500,6 +594,7 @@ function RunBar() {
               {t('Run')}
             </Button>
           </div>
+          {scopeKind === 'selected' && selected.value.size === 0 && <div class="hint">{t('Select rows first: tick the boxes next to the prompts.')}</div>}
           {est && (
             <div class="estimate">
               <span>{t('{rows} prompts → {outputs} files', { rows: est.rows, outputs: est.outputs })}</span>
@@ -515,9 +610,15 @@ function RunBar() {
           {est && est.proNeeded.length > 0 && (
             <div class="pro-needed">
               <ProBadge /> {t('Needs Pro')}: {est.proNeeded.map((x) => t(x)).join(', ')}.{' '}
-              <Button small variant="ghost" onClick={() => (tab.value = 'settings')}>
-                {t('Start free trial')}
-              </Button>
+              {license.value.trialStartedAt ? (
+                <Button small variant="ghost" onClick={() => (tab.value = 'settings')}>
+                  {t('Upgrade')}
+                </Button>
+              ) : (
+                <Button small variant="ghost" onClick={startTrial}>
+                  {t('Start free trial')}
+                </Button>
+              )}
             </div>
           )}
           {!pro.value && usedToday.value >= PRO.freePerDay && (

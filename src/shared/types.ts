@@ -152,6 +152,8 @@ export interface HistoryItem {
   url: string;
   file?: string;
   thumbId?: string;
+  /** Stored copy of a result that has no lasting URL (API outputs), for ZIP export. */
+  assetId?: string;
   cost?: number;
   createdAt: number;
 }

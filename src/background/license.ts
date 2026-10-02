@@ -19,8 +19,12 @@ async function call(action: 'activate' | 'validate' | 'deactivate', body: Record
     headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(body).toString()
   });
-  // Lemon Squeezy answers 400/404 with a JSON body that explains the problem.
-  return (await res.json()) as LicenseResponse;
+  // Lemon Squeezy answers 400/404 with a JSON body that explains the problem; anything else
+  // (5xx, an HTML error page, a captive portal) is treated as "offline".
+  if (res.status >= 500 || res.status === 429) throw new Error(`HTTP ${res.status}`);
+  const json = (await res.json()) as LicenseResponse;
+  if (!json || typeof json !== 'object') throw new Error('bad response');
+  return json;
 }
 
 // Until the product is configured no key is ours: fail closed, never open.
@@ -29,13 +33,16 @@ const ours = (r: LicenseResponse) => r.meta?.store_id === PRO.storeId && PRO.pro
 export async function activate(rawKey: string) {
   const key = rawKey.trim();
   if (!/^[\w-]{16,}$/.test(key)) throw new Error('That does not look like a licence key.');
+  // activating again (new key or the same one) frees this browser's previous activation slot
+  const old = await get('license');
+  if (old.key && old.instanceId) await call('deactivate', { license_key: old.key, instance_id: old.instanceId }).catch(() => {});
   let r: LicenseResponse;
   try {
     r = await call('activate', { license_key: key, instance_name: `Chrome ${navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] ?? ''}`.trim() });
   } catch {
     throw new Error('Could not reach Lemon Squeezy. Check the connection and try again.');
   }
-  if (!r.activated || !r.instance?.id) throw new Error(`This key could not be activated: ${r.error ?? 'unknown error'}.`);
+  if (!r.activated || !r.instance?.id) throw new Error(`This key could not be activated: ${(r.error ?? 'unknown error').replace(/\.+$/, '')}.`);
   if (!ours(r)) {
     await call('deactivate', { license_key: key, instance_id: r.instance.id }).catch(() => {});
     throw new Error('This licence key is for a different product.');

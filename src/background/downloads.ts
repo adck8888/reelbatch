@@ -91,8 +91,8 @@ export async function downloadBlob(blob: Blob, base: string): Promise<Saved> {
 }
 
 export async function downloadText(text: string, base: string, mime = 'text/plain') {
-  const dataUrl = `data:${mime};charset=utf-8,${encodeURIComponent(text)}`;
-  return downloadUrl(dataUrl, base);
+  // through a blob: a data: URL is capped at 2 MB, which a long run log can exceed
+  return downloadBlob(new Blob([text], { type: `${mime};charset=utf-8` }), base);
 }
 
 /**

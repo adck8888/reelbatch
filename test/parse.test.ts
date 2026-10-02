@@ -42,6 +42,7 @@ describe('variations and templates', () => {
 
   it('caps runaway expansions', () => {
     expect(expandVariations('{a|b|c|d|e|f|g|h|i|j} {a|b|c|d|e|f|g|h|i|j} {a|b|c|d|e|f|g|h|i|j}', 50)).toHaveLength(50);
+    expect(expandVariations('{a|b|c|d|e|f|g|h|i|j} {a|b|c|d|e|f|g|h|i|j} {a|b|c|d|e|f|g|h|i|j}', 50).every((p) => !p.includes('{'))).toBe(true);
   });
 
   it('leaves unknown variables visible', () => {
@@ -100,5 +101,69 @@ describe('tables', () => {
 
   it('detects file kinds', () => {
     expect(['a.CSV', 'b.xlsx', 'c.json', 'd.docx', 'e.txt'].map(kindOfFile)).toEqual(['csv', 'xlsx', 'json', 'docx', 'text']);
+  });
+});
+
+describe('import fixes', () => {
+  it('strips bullets and #N numbering but keeps content that looks similar', () => {
+    expect(['- a cat', '• a dog', '* a fox', '– an owl', '#8 a bee', '#8. a bat', '#8: a cow', '- 2. a pig'].map(stripPrefix)).toEqual([
+      'a cat', 'a dog', 'a fox', 'an owl', 'a bee', 'a bat', 'a cow', 'a pig'
+    ]);
+    expect(stripPrefix('-10 degrees outside')).toBe('-10 degrees outside');
+    expect(stripPrefix('#sunset over the bay')).toBe('#sunset over the bay');
+    expect(stripPrefix('*dramatic* light')).toBe('*dramatic* light');
+    expect(splitPrompts('- a cat\n- a dog')).toEqual(['a cat', 'a dog']);
+  });
+
+  it('dedupes nested variations and tidies empty options', () => {
+    expect(expandVariations('{a|{b|c}}')).toEqual(['a', 'b', 'c']);
+    expect(expandVariations('{x|x} {y|y}')).toEqual(['x y']);
+    expect(expandVariations('a {|big} cat')).toEqual(['a cat', 'a big cat']);
+    expect(expandVariations('cat {|fluffy}, 4k')).toEqual(['cat, 4k', 'cat fluffy, 4k']);
+    expect(expandVariations('plain  prompt')).toEqual(['plain  prompt']);
+  });
+
+  it('joins a punctuation-led suffix without a stray space', () => {
+    expect(applyTemplate('dawn', { suffix: ', SUF' })).toEqual(['dawn, SUF']);
+    expect(applyTemplate(' dawn ', { prefix: ' wide shot: ', suffix: ' 4k ' })).toEqual(['wide shot: dawn 4k']);
+    expect(applyTemplate('at {dawn|night}', { suffix: '. soft light' })).toEqual(['at dawn. soft light', 'at night. soft light']);
+  });
+
+  it('maps the model column by id, label or target and sets engine and kind', () => {
+    const map = { prompt: 'prompt', model: 'model' } as const;
+    const rows = rowsFromTable(
+      [
+        { prompt: 'a', model: 'gemini:veo-3.1' },
+        { prompt: 'b', model: 'veo 3.1 quality' },
+        { prompt: 'c', model: 'black-forest-labs/flux-2-pro' },
+        { prompt: 'd', model: 'Sora 9' }
+      ],
+      map
+    );
+    expect(rows.map((r) => r.overrides)).toEqual([
+      { model: 'gemini:veo-3.1', engine: 'gemini', kind: 'video' },
+      { model: 'flow:veo-quality', engine: 'flow', kind: 'video' },
+      { model: 'replicate:flux-2-pro', engine: 'replicate', kind: 'image' },
+      {}
+    ]);
+    expect(rows.slice(0, 3).every((r) => !r.warnings)).toBe(true);
+    expect(rows[3].warnings).toEqual(['Unknown model "Sora 9" — the queue default is used']);
+  });
+
+  it('warns about unsupported aspects instead of coercing them', () => {
+    const rows = rowsFromTable(
+      [
+        { prompt: 'a', ar: '7:3' },
+        { prompt: 'b', ar: 'portrait' },
+        { prompt: 'c', ar: '4:3', model: 'flow:veo-fast' }
+      ],
+      { prompt: 'prompt', ar: 'aspect', model: 'model' }
+    );
+    expect(rows[0].overrides).toEqual({});
+    expect(rows[0].warnings).toEqual(['Unsupported aspect "7:3" — the queue default is used']);
+    expect(rows[1].overrides).toEqual({ aspect: '9:16' });
+    expect(rows[1].warnings).toBeUndefined();
+    expect(rows[2].overrides.aspect).toBe('4:3');
+    expect(rows[2].warnings).toEqual(['Veo 3.1 Fast has no 4:3 aspect — 16:9 is used']);
   });
 });

@@ -99,7 +99,10 @@ export async function deleteHistory(ids: string[]) {
   await tx('history', 'readwrite', (s) => {
     for (const id of ids) s.delete(id);
   });
-  for (const it of items) if (it?.thumbId) await deleteAsset(it.thumbId).catch(() => {});
+  for (const it of items) {
+    if (it?.thumbId) await deleteAsset(it.thumbId).catch(() => {});
+    if (it?.assetId) await deleteAsset(it.assetId).catch(() => {});
+  }
 }
 
 export async function clearHistory() {

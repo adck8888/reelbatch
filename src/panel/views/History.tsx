@@ -59,6 +59,7 @@ export function HistoryView() {
             {t('Run again')}
           </Button>
           <Button small variant="ghost" icon="trash" onClick={async () => {
+            if (!confirm(t('Delete {n} items from history? Downloaded files stay on disk.', { n: sel.size }))) return;
             await deleteHistory([...sel]);
             setSel(new Set());
             await load();

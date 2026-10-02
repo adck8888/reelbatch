@@ -1,13 +1,18 @@
 import type { GenSettings, Row } from './types';
 import { uid } from './util';
+import { findModel, MODELS } from './models';
 
 export type SplitMode = 'auto' | 'lines' | 'blocks' | 'delimiter';
 
 const PREFIX = /^\s*(?:(?:p|prompt|scene|shot)\s*#?\s*\d+|#?\d{1,4})\s*[:.)\]\-–—]\s+/i;
+/** "#8 a cat": a hash number followed by a space (a hashtag word like "#sunset" is content). */
+const HASH_NUM = /^\s*#\d{1,4}\s+/;
+/** List bullets; the space after them is required so "-10 degrees" stays intact. */
+const BULLET = /^\s*[-•*–—]\s+/;
 
-/** Remove "P1:", "Prompt 2 -", "3." style numbering that people paste from chat tools. */
+/** Remove "P1:", "Prompt 2 -", "3.", "#8", "- " style numbering and bullets that people paste from chat tools. */
 export function stripPrefix(s: string) {
-  return s.replace(PREFIX, '').trim();
+  return s.replace(BULLET, '').replace(PREFIX, '').replace(HASH_NUM, '').trim();
 }
 
 export function splitPrompts(text: string, mode: SplitMode = 'auto', delimiter = '---', strip = true): string[] {
@@ -52,23 +57,36 @@ const ALT = /\{([^{}]*\|[^{}]*)\}/;
 
 /** "a {red|blue} car at {dawn|night}" -> 4 prompts (cartesian product). Capped to protect the queue. */
 export function expandVariations(prompt: string, cap = 500): string[] {
-  let out = [prompt];
-  while (out.some((p) => ALT.test(p))) {
-    const next: string[] = [];
-    for (const p of out) {
-      const m = p.match(ALT);
-      if (!m) {
-        next.push(p);
-        continue;
-      }
-      for (const opt of m[1].split('|')) {
-        next.push(p.slice(0, m.index) + opt.trim() + p.slice(m.index! + m[0].length));
-        if (next.length >= cap) return next;
-      }
+  // depth-first, so a capped list holds only complete prompts (no {a|b} left in)
+  // nested groups like {a|{b|c}} can yield the same prompt twice: keep the first, in order
+  if (!ALT.test(prompt)) return [prompt];
+  const out = new Set<string>();
+  // duplicates do not count toward the cap, so bound the total walk too
+  let budget = cap * 20;
+  const walk = (p: string) => {
+    if (out.size >= cap || budget <= 0) return;
+    const m = p.match(ALT);
+    if (!m) {
+      budget--;
+      return void out.add(tidy(p));
     }
-    out = next;
-  }
-  return out;
+    for (const opt of m[1].split('|')) walk(p.slice(0, m.index) + opt.trim() + p.slice(m.index! + m[0].length));
+  };
+  walk(prompt);
+  return [...out];
+}
+
+/** After an empty option ("{|x}"): collapse doubled spaces and drop the space left before punctuation. */
+function tidy(p: string) {
+  return p.replace(/[ \t]{2,}/g, ' ').replace(/[ \t]+([,.;:!?])/g, '$1').trim();
+}
+
+/** Join template parts with one space, but glue a part that starts with punctuation (", 4k") straight on. */
+function joinParts(parts: (string | undefined)[]) {
+  return parts
+    .map((x) => x?.trim())
+    .filter((x): x is string => !!x)
+    .reduce((acc, x) => (!acc ? x : /^[,.;:!?)\]]/.test(x) ? acc + x : `${acc} ${x}`), '');
 }
 
 /** Fill {name} placeholders from vars; unknown names are left as-is so they stay visible. */
@@ -88,7 +106,7 @@ export interface BuildOptions {
 }
 
 export function applyTemplate(prompt: string, o: BuildOptions): string[] {
-  const base = [o.prefix?.trim(), fillVars(prompt, o.vars ?? {}), o.suffix?.trim()].filter(Boolean).join(' ');
+  const base = joinParts([o.prefix, fillVars(prompt, o.vars ?? {}), o.suffix]);
   const expanded = o.variations === false ? [base] : expandVariations(base);
   const n = Math.max(1, Math.min(100, o.repeat ?? 1));
   return expanded.flatMap((p) => Array.from({ length: n }, () => p));
@@ -145,11 +163,19 @@ export function guessMapping(headers: string[], table: Record<string, string>[] 
 
 const listOf = (v: string) => v.split(/[\s,;|]+/).map((x) => x.trim()).filter(Boolean);
 
-export function rowsFromTable(table: Record<string, string>[], map: Record<string, Field>, o: BuildOptions = {}): Row[] {
-  const rows: Row[] = [];
+/** A row built from a table, with problems found in its cells (unknown model, unsupported aspect) for the import preview. */
+export type ImportRow = Row & { warnings?: string[] };
+
+const ALL_ASPECTS = new Set(MODELS.flatMap((m) => m.aspects));
+
+export function rowsFromTable(table: Record<string, string>[], map: Record<string, Field>, o: BuildOptions = {}): ImportRow[] {
+  const rows: ImportRow[] = [];
   for (const rec of table) {
-    const r: Partial<Row> & { prompt: string } = { prompt: '', overrides: {}, refs: [], vars: {} };
+    const r: Partial<ImportRow> & { prompt: string } = { prompt: '', overrides: {}, refs: [], vars: {} };
     const ov: Partial<GenSettings> = {};
+    const warnings: string[] = [];
+    let modelRaw = '';
+    let aspectRaw = '';
     for (const [col, raw] of Object.entries(rec)) {
       const v = String(raw ?? '').trim();
       r.vars![col] = v;
@@ -157,8 +183,8 @@ export function rowsFromTable(table: Record<string, string>[], map: Record<strin
       switch (map[col]) {
         case 'prompt': r.prompt = v; break;
         case 'negative': ov.negative = v; break;
-        case 'model': ov.model = v; break;
-        case 'aspect': ov.aspect = normAspect(v); break;
+        case 'model': modelRaw = v; break;
+        case 'aspect': aspectRaw = v; break;
         case 'count': ov.count = clampInt(v, 1, 4); break;
         case 'duration': ov.duration = clampInt(v, 1, 60); break;
         case 'resolution': ov.resolution = v; break;
@@ -173,6 +199,25 @@ export function rowsFromTable(table: Record<string, string>[], map: Record<strin
       }
     }
     if (!r.prompt) continue;
+    if (modelRaw) {
+      const m = findModel(modelRaw);
+      if (m) {
+        // engine and kind must match the model, or effectiveSettings falls back to another model
+        ov.model = m.id;
+        ov.engine = m.engine;
+        ov.kind = m.kind;
+      } else warnings.push(`Unknown model "${modelRaw}" — the queue default is used`);
+    }
+    if (aspectRaw) {
+      const a = normAspect(aspectRaw);
+      if (!ALL_ASPECTS.has(a)) warnings.push(`Unsupported aspect "${aspectRaw}" — the queue default is used`);
+      else {
+        ov.aspect = a;
+        const m = ov.model ? findModel(ov.model) : undefined;
+        if (m && !m.aspects.includes(a)) warnings.push(`${m.label} has no ${a} aspect — ${m.aspects[0]} is used`);
+      }
+    }
+    if (warnings.length) r.warnings = warnings;
     r.overrides = ov;
     for (const p of applyTemplate(r.prompt, { ...o, vars: { ...o.vars, ...r.vars } })) rows.push(newRow({ ...r, prompt: p }));
   }
@@ -239,8 +284,11 @@ export function readJson(text: string): Table {
 }
 
 export async function readDocx(buf: ArrayBuffer): Promise<string> {
-  const mammoth = await import('mammoth');
-  const { value } = await (mammoth as unknown as { extractRawText: (o: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> }).extractRawText({ arrayBuffer: buf });
+  // mammoth is CommonJS: in the esbuild ESM bundle its functions sit on .default
+  type Mammoth = { extractRawText: (o: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> };
+  const mod = (await import('mammoth')) as unknown as Mammoth & { default?: Mammoth };
+  const mammoth = mod.default ?? mod;
+  const { value } = await mammoth.extractRawText({ arrayBuffer: buf });
   return value;
 }
 

@@ -16,7 +16,7 @@ async function ensure() {
     creating = chrome.offscreen
       .createDocument({
         url: 'offscreen.html',
-        reasons: [chrome.offscreen.Reason.BLOBS, chrome.offscreen.Reason.DOM_PARSER],
+        reasons: [chrome.offscreen.Reason.BLOBS],
         justification: 'Create downloadable files (ZIP, run logs) and read the last frame of generated videos for chaining.'
       })
       .finally(() => (creating = null));
