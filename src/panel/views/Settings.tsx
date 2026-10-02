@@ -1,26 +1,36 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { ApiKeys } from '../../shared/types';
 import type { HealthReport as Health } from '../../shared/messages';
-import { PRO } from '../../shared/license';
 import { buildPath } from '../../shared/template';
+import { te } from '../errors';
 import { t, LANGS } from '../i18n';
-import { license, logs, plan, pro, queue, queueIndex, saveSettings, schedule, settings, trialLeft, usedToday } from '../store';
-import { Button, Field, Icon, NumberInput, ProBadge, Select, Toggle, call, copyText, toast } from '../ui';
+import { logs, pro, queue, queueIndex, saveSettings, schedule, settings, settingsSection } from '../store';
+import { Button, Disclosure, Field, Icon, NumberInput, ProBadge, Select, Toggle, call, copyText, toast } from '../ui';
 
 declare const __VERSION__: string;
 
 const ISSUES_URL = 'https://github.com/adck8888/reelbatch/issues/new';
 
+/** Basics are always visible; everything else sits under "Advanced", diagnostics at the bottom. */
 export function SettingsView() {
+  const [advanced, setAdvanced] = useState(settingsSection.value === 'advanced');
+  useEffect(() => {
+    if (settingsSection.value === 'advanced') setAdvanced(true);
+    settingsSection.value = null;
+  }, [settingsSection.value]);
   return (
     <div class="settings-view">
-      <LicenseCard />
-      <RunCard />
-      <DownloadCard />
-      <KeysCard />
-      <ScheduleCard />
-      <AppCard />
-      <DiagnosticsCard />
+      <BasicsCard />
+      <Disclosure title={t('Advanced')} hint={t('Concurrency, retries, budgets, quality, API keys, schedule')} open={advanced} onToggle={setAdvanced} class="card">
+        <RunCard />
+        <QualityCard />
+        <KeysCard />
+        <ScheduleCard />
+        <AppCard />
+      </Disclosure>
+      <Disclosure title={t('Diagnostics')} hint={`Reelbatch ${__VERSION__}`} class="card">
+        <DiagnosticsCard />
+      </Disclosure>
     </div>
   );
 }
@@ -36,135 +46,63 @@ function Card({ title, children, badge }: { title: string; children: preact.Comp
   );
 }
 
-// ---------- licence ----------
+// ---------- basics ----------
 
-function LicenseCard() {
-  const l = license.value;
-  const p = plan.value;
-  const [key, setKey] = useState('');
-  const [busy, setBusy] = useState(false);
-  const activate = async () => {
-    setBusy(true);
-    const ok = await call({ type: 'license:activate', key }, t('Pro activated. Thank you!'));
-    setBusy(false);
-    // keep the key in the field after a failure so a typo can be fixed instead of pasted again
-    if (ok !== null) setKey('');
-  };
+function BasicsCard() {
+  const s = settings.value;
+  const o = s.run;
+  const d = o.download;
+  const setRun = (fn: (r: typeof o) => void) => saveSettings((x) => fn(x.run));
+  const setDl = (fn: (x: typeof d) => void) => saveSettings((x) => fn(x.run.download));
+  const example = (() => {
+    const ctx = { n: 7, total: 120, prompt: 'A red fox jumping over a frozen river at dawn', model: 'Veo 3.1 Fast', queue: queue.value?.name ?? `${t('Queue')} 1`, variant: 1, kind: 'video' };
+    // the same path builder the downloads use, so the example shows the real (sanitised) path
+    return buildPath(d.folder, d.filename, 'mp4', ctx);
+  })();
   return (
-    <Card title={t('Plan')}>
-      {p === 'pro' && (
-        <div class="plan pro">
-          <Icon name="check" /> <b>Reelbatch Pro</b> {l.plan && <span class="muted">· {l.plan}</span>}
-          <div class="row-wrap">
-            <span class="muted">{t('Key')} …{l.key?.slice(-6)}</span>
-            <span class="grow" />
-            <Button small variant="ghost" onClick={() => call({ type: 'license:refresh' }, t('Licence checked'))}>
-              {t('Check now')}
-            </Button>
-            <Button small variant="ghost" onClick={() => confirm(t('Remove the licence from this browser? You can activate it again later.')) && call({ type: 'license:deactivate' })}>
-              {t('Deactivate')}
-            </Button>
-          </div>
-        </div>
-      )}
-      {p === 'trial' && (
-        <div class="plan trial">
-          <b>{t('Pro trial')}</b> {t('{n} days left', { n: trialLeft.value })}
-        </div>
-      )}
-      {p === 'free' && l.key && l.error && (
-        <div class="plan free">
-          <div class="err">{t('Licence problem')}: {l.error}</div>
-        </div>
-      )}
-      {p !== 'pro' && (
+    <Card title={t('Basics')}>
+      <Toggle checked={d.enabled} onChange={(v) => setDl((x) => void (x.enabled = v))} label={t('Save every result to Downloads automatically')} />
+      {d.enabled && (
         <>
-          <PlanCompare />
-          <div class="buy">
-            {!l.trialStartedAt && (
-              <Button variant="primary" class="big trial-btn" onClick={() => call({ type: 'license:trial' }, t('Trial started: 7 days of Pro'))}>
-                {t('Start 7-day trial')}
-              </Button>
-            )}
-            <div class="buy-prices">
-              <Button variant={l.trialStartedAt ? 'primary' : 'default'} onClick={() => chrome.tabs.create({ url: PRO.lifetimeUrl })}>
-                {t('{price} — lifetime', { price: PRO.lifetimePrice })}
-              </Button>
-              <Button onClick={() => chrome.tabs.create({ url: PRO.monthlyUrl })}>{t('{price}/month', { price: PRO.monthlyPrice.replace(/\s*\/\s*month$/i, '') })}</Button>
-            </div>
-            <p class="hint center">{t('{n}-day free trial, no card needed. Cancel the monthly plan any time.', { n: PRO.trialDays })}</p>
+          <div class="grid2">
+            <Field label={t('Folder')} tip={t('A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}')}>
+              <input type="text" value={d.folder} onChange={(e) => setDl((x) => void (x.folder = (e.target as HTMLInputElement).value || 'Reelbatch'))} />
+            </Field>
+            <Field label={t('File name')} tip={t('A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4')}>
+              <input type="text" value={d.filename} onChange={(e) => setDl((x) => void (x.filename = (e.target as HTMLInputElement).value || '{n}'))} />
+            </Field>
           </div>
-          <Field label={t('Already bought Pro?')}>
-            <div class="row-wrap nowrap">
-              <input type="text" class="grow" value={key} placeholder={t('Licence key from your email')} onInput={(e) => setKey((e.target as HTMLInputElement).value)} />
-              <Button disabled={busy || key.trim().length < 16} onClick={activate}>
-                {busy ? t('Checking…') : t('Activate')}
-              </Button>
-            </div>
-          </Field>
+          <p class="hint">
+            {t('Example')}: <code>{example}</code>
+            <br />
+            {t('Tokens')}: {'{n} {prompt} {prompt30} {model} {queue} {variant} {kind} {date} {time}'} + {t('imported column names')}
+          </p>
         </>
       )}
+      <div class="grid2">
+        <Field label={t('Pause between prompts, seconds')} tip={t('Reelbatch waits a random time between these two numbers before the next prompt')} hint={t('Gives Flow time to finish before the next prompt')}>
+          <span class="range">
+            <NumberInput value={o.delayMin} min={0} max={600} width={64} onChange={(v) => setRun((r) => void ((r.delayMin = v), (r.delayMax = Math.max(v, r.delayMax))))} />
+            –
+            <NumberInput value={o.delayMax} min={0} max={900} width={64} onChange={(v) => setRun((r) => void ((r.delayMax = Math.max(v, r.delayMin))))} />
+          </span>
+        </Field>
+        <Field label={t('Language')}>
+          <Select value={s.lang} options={LANGS.map((l) => ({ value: l.id, label: l.id === 'auto' ? t('Auto') : l.label }))} onChange={(lang) => saveSettings((x) => void (x.lang = lang))} />
+        </Field>
+        <Field label={t('Theme')}>
+          <Select
+            value={s.theme}
+            options={[
+              { value: 'system', label: t('System') },
+              { value: 'light', label: t('Light') },
+              { value: 'dark', label: t('Dark') }
+            ]}
+            onChange={(theme) => saveSettings((x) => void (x.theme = theme))}
+          />
+        </Field>
+      </div>
     </Card>
-  );
-}
-
-/** Free vs Pro, framed as what each plan lets you get done. */
-function PlanCompare() {
-  const free = [
-    t('Google Flow with every model'),
-    t('{n} prompts a day', { n: PRO.freePerDay }),
-    t('One prompt at a time'),
-    t('Auto-download with clear file names'),
-    t('Import TXT, CSV and DOCX')
-  ];
-  const pro: [string, string][] = [
-    [t('No daily limit'), t('run hundreds of prompts in one go')],
-    [t('Parallel tabs'), t('finish big batches several times faster')],
-    [t('Your own Gemini and Replicate keys'), t('Kling, Seedance, Veo and more')],
-    [t('Animate photos in bulk'), t('a folder of images becomes a set of videos')],
-    [t('Characters with @mentions'), t('the same face or product in every shot')],
-    [t('Chained clips'), t('each video continues from the last frame')],
-    [t('Image → video pipeline'), t('make a still, then animate it, in one run')],
-    [t('Upscaled 2K / 4K downloads'), t('ready to publish')],
-    [t('Scheduler'), t('start a run while you are away')],
-    [t('AI prompt helper'), t('writes and varies prompts for you')],
-    [t('Sheets, Excel and JSON import, ZIP export'), t('bring whole content plans in and out')]
-  ];
-  return (
-    <div class="compare">
-      <div class="compare-col free">
-        <div class="compare-head">
-          <b>{t('Free')}</b>
-          <span class="muted">{t('Try it on real work')}</span>
-          {plan.value === 'free' && <span class="used">{t('{n} of {max} prompts used today', { n: usedToday.value, max: PRO.freePerDay })}</span>}
-        </div>
-        <ul>
-          {free.map((x) => (
-            <li key={x}>
-              <Icon name="check" size={13} />
-              <span>{x}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div class="compare-col pro">
-        <div class="compare-head">
-          <b>Pro</b>
-          <span class="price">{t('{monthly}/month or {lifetime} once', { monthly: PRO.monthlyPrice.replace(/\s*\/\s*month$/i, ''), lifetime: PRO.lifetimePrice.replace(/\s*once$/i, '') })}</span>
-        </div>
-        <span class="compare-sub">{t('Everything in Free, plus:')}</span>
-        <ul>
-          {pro.map(([a, b]) => (
-            <li key={a}>
-              <Icon name="check" size={13} />
-              <span>
-                <b>{a}</b> — {b}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
   );
 }
 
@@ -180,18 +118,11 @@ function RunCard() {
   return (
     <Card title={t('Running')}>
       <div class="grid2">
-        <Field label={t('Pause between prompts, seconds')} tip={t('Reelbatch waits a random time between these two numbers before the next prompt')} hint={t('Gives Flow time to finish before the next prompt')}>
-          <span class="range">
-            <NumberInput value={o.delayMin} min={0} max={600} width={64} onChange={(v) => set((r) => void ((r.delayMin = v), (r.delayMax = Math.max(v, r.delayMax))))} />
-            –
-            <NumberInput value={o.delayMax} min={0} max={900} width={64} onChange={(v) => set((r) => void ((r.delayMax = Math.max(v, r.delayMin))))} />
-          </span>
+        <Field label={<>{t('Prompts at the same time')} {!pro.value && <ProBadge />}</>} tip={t('Concurrency: how many prompts render at once in each Flow tab. Free runs one at a time.')} hint={t('Flow renders several prompts in parallel; 2–3 is a safe maximum per tab')}>
+          <NumberInput value={o.concurrency} min={1} max={8} width={64} onChange={(v) => set((r) => void (r.concurrency = v))} />
         </Field>
         <Field label={t('Reading pause per 100 characters, s')}>
           <NumberInput value={o.readingPause} min={0} max={30} step={0.5} width={64} onChange={(v) => set((r) => void (r.readingPause = v))} />
-        </Field>
-        <Field label={<>{t('Prompts at the same time')} {!pro.value && <ProBadge />}</>} tip={t('Concurrency: how many prompts render at once in each Flow tab. Free runs one at a time.')} hint={t('Flow renders several prompts in parallel; 2–3 is a safe maximum per tab')}>
-          <NumberInput value={o.concurrency} min={1} max={8} width={64} onChange={(v) => set((r) => void (r.concurrency = v))} />
         </Field>
         <Field label={t('Retries per prompt')} tip={t('How many times a failed prompt is tried again before it is marked Failed')}>
           <NumberInput value={o.retries} min={0} max={5} width={64} onChange={(v) => set((r) => void (r.retries = v))} />
@@ -229,62 +160,39 @@ function RunCard() {
   );
 }
 
-// ---------- downloads ----------
+// ---------- download quality ----------
 
-function DownloadCard() {
+function QualityCard() {
   const d = settings.value.run.download;
   const set = (fn: (x: typeof d) => void) => saveSettings((s) => fn(s.run.download));
-  const example = (() => {
-    const ctx = { n: 7, total: 120, prompt: 'A red fox jumping over a frozen river at dawn', model: 'Veo 3.1 Fast', queue: queue.value?.name ?? `${t('Queue')} 1`, variant: 1, kind: 'video' };
-    // the same path builder the downloads use, so the example shows the real (sanitised) path
-    return buildPath(d.folder, d.filename, 'mp4', ctx);
-  })();
   return (
     <Card title={t('Downloads')}>
-      <Toggle checked={d.enabled} onChange={(v) => set((x) => void (x.enabled = v))} label={t('Save every result to Downloads automatically')} />
-      {d.enabled && (
-        <>
-          <div class="grid2">
-            <Field label={t('Folder')} tip={t('A folder inside Downloads; the same {tokens} work here, e.g. Reelbatch/{queue}')}>
-              <input type="text" value={d.folder} onChange={(e) => set((x) => void (x.folder = (e.target as HTMLInputElement).value || 'Reelbatch'))} />
-            </Field>
-            <Field label={t('File name')} tip={t('A template: words in {braces} are replaced for each file, e.g. {n}_{prompt30} → 007_A red fox jumping.mp4')}>
-              <input type="text" value={d.filename} onChange={(e) => set((x) => void (x.filename = (e.target as HTMLInputElement).value || '{n}'))} />
-            </Field>
-          </div>
-          <p class="hint">
-            {t('Tokens')}: {'{n} {prompt} {prompt30} {model} {queue} {variant} {kind} {date} {time}'} + {t('imported column names')}
-            <br />
-            {t('Example')}: <code>{example}</code>
-          </p>
-          <div class="grid2">
-            <Field label={<>{t('Image quality (Flow)')} {!pro.value && <ProBadge />}</>}>
-              <Select
-                value={d.imageQuality}
-                options={[
-                  { value: '1k', label: t('Original (1K)') },
-                  { value: '2k', label: '2K' },
-                  { value: '4k', label: t('4K (paid Flow plans)') }
-                ]}
-                onChange={(v) => set((x) => void (x.imageQuality = v))}
-              />
-            </Field>
-            <Field label={<>{t('Video quality (Flow)')} {!pro.value && <ProBadge />}</>}>
-              <Select
-                value={d.videoQuality}
-                options={[
-                  { value: '720p', label: t('Original (720p)') },
-                  { value: '1080p', label: '1080p' },
-                  { value: '4k', label: t('4K (paid Flow plans)') }
-                ]}
-                onChange={(v) => set((x) => void (x.videoQuality = v))}
-              />
-            </Field>
-          </div>
-          <p class="hint">{t('If an upscale is not available on your plan, the original is saved instead.')}</p>
-          <Toggle checked={d.sidecar} onChange={(v) => set((x) => void (x.sidecar = v))} label={t('Also save run.csv with prompts, files, links and cost')} />
-        </>
-      )}
+      <div class="grid2">
+        <Field label={<>{t('Image quality (Flow)')} {!pro.value && <ProBadge />}</>}>
+          <Select
+            value={d.imageQuality}
+            options={[
+              { value: '1k', label: t('Original (1K)') },
+              { value: '2k', label: '2K' },
+              { value: '4k', label: t('4K (paid Flow plans)') }
+            ]}
+            onChange={(v) => set((x) => void (x.imageQuality = v))}
+          />
+        </Field>
+        <Field label={<>{t('Video quality (Flow)')} {!pro.value && <ProBadge />}</>}>
+          <Select
+            value={d.videoQuality}
+            options={[
+              { value: '720p', label: t('Original (720p)') },
+              { value: '1080p', label: '1080p' },
+              { value: '4k', label: t('4K (paid Flow plans)') }
+            ]}
+            onChange={(v) => set((x) => void (x.videoQuality = v))}
+          />
+        </Field>
+      </div>
+      <p class="hint">{t('If an upscale is not available on your plan, the original is saved instead.')}</p>
+      <Toggle checked={d.sidecar} onChange={(v) => set((x) => void (x.sidecar = v))} label={t('Also save run.csv with prompts, files, links and cost')} />
     </Card>
   );
 }
@@ -413,22 +321,6 @@ function AppCard() {
   const s = settings.value;
   return (
     <Card title={t('App')}>
-      <div class="grid2">
-        <Field label={t('Language')}>
-          <Select value={s.lang} options={LANGS.map((l) => ({ value: l.id, label: l.id === 'auto' ? t('Auto') : l.label }))} onChange={(lang) => saveSettings((x) => void (x.lang = lang))} />
-        </Field>
-        <Field label={t('Theme')}>
-          <Select
-            value={s.theme}
-            options={[
-              { value: 'system', label: t('System') },
-              { value: 'light', label: t('Light') },
-              { value: 'dark', label: t('Dark') }
-            ]}
-            onChange={(theme) => saveSettings((x) => void (x.theme = theme))}
-          />
-        </Field>
-      </div>
       <Toggle checked={s.notify} onChange={(v) => saveSettings((x) => void (x.notify = v))} label={t('Notify me when a run finishes or pauses')} />
       <Toggle
         checked={s.remoteConfig}
@@ -457,7 +349,7 @@ function DiagnosticsCard() {
     ].join('\n');
 
   return (
-    <Card title={t('Diagnostics')}>
+    <div class="stack">
       <div class="row-wrap">
         <Button small icon="check" disabled={busy} onClick={check}>
           {t('Check Flow tab')}
@@ -492,12 +384,12 @@ function DiagnosticsCard() {
           {logs.value
             .slice(-200)
             .reverse()
-            .map((l) => `${new Date(l.t).toLocaleTimeString()} ${l.level === 'info' ? '' : l.level.toUpperCase() + ' '}${l.msg}`)
+            .map((l) => `${new Date(l.t).toLocaleTimeString()} ${l.level === 'info' ? '' : l.level.toUpperCase() + ' '}${te(l.msg)}`)
             .join('\n')}
         </pre>
       </details>
       <p class="hint">Reelbatch {__VERSION__}</p>
-    </Card>
+    </div>
   );
 }
 
@@ -516,18 +408,12 @@ function healthLabel(key: string): string {
   return labels[key] ?? key;
 }
 
-/** The content script writes details in English; translate the ones it is known to send. */
+/** The content script writes details in English; translate the ones it is known to send, then anything te() knows. */
 function healthDetail(detail: string): string {
   const known: Record<string, string> = {
-    'No Flow tab is open': t('No Flow tab is open'),
-    'Open a Flow project (flow.google.com → New project)': t('Open a Flow project (flow.google.com → New project)'),
-    'direct mode': t('Off (direct mode)'),
-    'Agent mode is on — Reelbatch turns it off automatically': t('Agent mode is on — Reelbatch turns it off automatically'),
-    'checked after Agent mode is off': t('checked after Agent mode is off'),
-    'Reload the Flow tab once so Reelbatch can observe results': t('Reload the Flow tab once so Reelbatch can observe results'),
-    'This Flow tab is in the background. Keep it in its own window so Chrome does not slow it down.': t('This Flow tab is in the background. Keep it in its own window so Chrome does not slow it down.')
+    'direct mode': t('Off (direct mode)')
   };
-  return known[detail] ?? detail;
+  return known[detail] ?? te(detail);
 }
 
 interface FlowTab {

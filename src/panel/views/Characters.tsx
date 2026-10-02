@@ -13,16 +13,15 @@ export function CharactersView() {
   return (
     <div class="characters-view">
       <div class="toolbar">
-        <h2>{t('Characters')}</h2>
+        <p class="muted intro">
+          {t('Write @Name in any prompt. Reelbatch attaches the character’s reference images and adds the description, so the same person, product or mascot looks the same in every shot.')}
+        </p>
         {!pro.value && <ProBadge />}
         <span class="grow" />
         <Button small variant="primary" icon="plus" onClick={() => setEdit({ id: uid(), name: '', description: '', refs: [], createdAt: Date.now() })}>
           {t('New character')}
         </Button>
       </div>
-      <p class="muted intro">
-        {t('Write @Name in any prompt. Reelbatch attaches the character’s reference images and adds the description, so the same person, product or mascot looks the same in every shot.')}
-      </p>
       {list.length === 0 ? (
         <div class="empty">
           <span class="empty-icon">

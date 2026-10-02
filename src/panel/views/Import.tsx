@@ -11,7 +11,7 @@ import { editQueue, pro, queue } from '../store';
 import { Button, Field, Modal, NumberInput, ProBadge, Select, Toggle, call, toast } from '../ui';
 import { ImagesPane } from './ImportImages';
 
-type Source = 'paste' | 'file' | 'sheets' | 'helper' | 'images';
+export type Source = 'paste' | 'file' | 'sheets' | 'helper' | 'images';
 
 const FIELDS: { value: MapField; label: string }[] = [
   { value: 'ignore', label: '— ignore —' },

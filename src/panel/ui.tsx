@@ -1,9 +1,10 @@
 import type { ButtonHTMLAttributes, ComponentChildren } from 'preact';
 import { signal } from '@preact/signals';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { getAsset, putAsset } from '../shared/idb';
 import { send, type PanelRequest } from '../shared/messages';
 import { errText } from '../shared/util';
+import { te } from './errors';
 import { t } from './i18n';
 
 // ---------- toasts ----------
@@ -22,15 +23,24 @@ export function toast(text: string, kind: Toast['kind'] = 'info', ms = 4500) {
   setTimeout(() => (toasts.value = toasts.value.filter((x) => x.id !== id)), kind === 'error' ? ms * 2 : ms);
 }
 
-/** Send a request to the worker; errors become a toast and resolve to null. */
+/** Send a request to the worker; errors become a toast (in the UI language) and resolve to null. */
 export async function call<T>(msg: PanelRequest, okText?: string): Promise<T | null> {
   try {
     const r = await send<T>(msg);
     if (okText) toast(okText, 'ok');
     return r;
   } catch (e) {
-    toast(errText(e), 'error');
+    toast(te(errText(e)), 'error');
     return null;
+  }
+}
+
+/** Like `call`, but the error comes back (translated) for the caller to show in place instead of a toast. */
+export async function attempt<T>(msg: PanelRequest): Promise<{ value: T; error?: undefined } | { value?: undefined; error: string }> {
+  try {
+    return { value: await send<T>(msg) };
+  } catch (e) {
+    return { error: te(errText(e)) };
   }
 }
 
@@ -82,7 +92,13 @@ const PATHS: Record<string, string> = {
   chevron: 'M9 6l6 6-6 6',
   lock: 'M6 11h12v9H6zM8 11V8a4 4 0 018 0v3',
   rocket: 'M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2M9 15l-3-3c1-4 4-8 11-9-1 7-5 10-9 11zM14 10h.01',
-  toggle: 'M8 7h8a5 5 0 010 10H8A5 5 0 018 7zM8 15a3 3 0 100-6 3 3 0 000 6z'
+  toggle: 'M8 7h8a5 5 0 010 10H8A5 5 0 018 7zM8 15a3 3 0 100-6 3 3 0 000 6z',
+  caret: 'M6 9l6 6 6-6',
+  folder: 'M3 7h6l2 2h10v10H3z',
+  at: 'M16 12a4 4 0 11-8 0 4 4 0 018 0zM16 8v5a3 3 0 006 0v-1a10 10 0 10-4 8',
+  file: 'M6 3h8l5 5v13H6zM14 3v5h5',
+  sheet: 'M4 5h16v14H4zM4 10h16M4 15h16M10 5v14',
+  none: ''
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof PATHS | string; size?: number }) {
@@ -180,17 +196,19 @@ export function Toggle({ checked, onChange, label, disabled }: { checked: boolea
   );
 }
 
-export function Modal({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: ComponentChildren; footer?: ComponentChildren; wide?: boolean }) {
+/** A dialog; `sheet` slides it up from the bottom (plan, characters, row editor) instead of centring it. */
+export function Modal({ title, onClose, children, footer, wide, sheet, head }: { title: string; onClose: () => void; children: ComponentChildren; footer?: ComponentChildren; wide?: boolean; sheet?: boolean; head?: ComponentChildren }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
   return (
-    <div class="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div class={`modal-back ${sheet ? 'sheet' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div class={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <header>
           <h2>{title}</h2>
+          {head}
           <Button icon="x" variant="ghost" small onClick={onClose} aria-label={t('Close')} />
         </header>
         <div class="modal-body">{children}</div>
@@ -209,8 +227,104 @@ export function Tip({ text }: { text: string }) {
   );
 }
 
+/** The PRO badge opens the plan sheet; App wires `fn` so this file does not depend on the store. */
+export const proBadgeClick = { fn: () => {} };
 export function ProBadge() {
-  return <span class="pro-badge">PRO</span>;
+  return (
+    <button type="button" class="pro-badge" title={t('Compare Free and Pro')} onClick={(e) => (e.stopPropagation(), proBadgeClick.fn())}>
+      PRO
+    </button>
+  );
+}
+
+export interface MenuItem {
+  label: string;
+  icon?: string;
+  run: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+  /** Shown with a check mark (e.g. the active queue). */
+  checked?: boolean;
+  /** A thin rule above this item. */
+  sep?: boolean;
+}
+
+/** A "⋯" (or labelled ▾) menu: closes after any item, on Esc and on a click outside it. */
+export function Menu({ items, label, icon = 'more', small = true, align = 'right', title, class: cls, variant = 'ghost' }: { items: MenuItem[]; label?: string; icon?: string; small?: boolean; align?: 'left' | 'right'; title?: string; class?: string; variant?: 'ghost' | 'default' }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => ref.current && (ref.current.open = false);
+    const onDown = (e: Event) => ref.current && !ref.current.contains(e.target as Node) && close();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <details class={`menu ${cls ?? ''}`} ref={ref} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary class={`btn ${variant} ${small ? 'sm' : ''} ${label ? '' : 'icon-only'}`} aria-label={label ?? t('More')} title={title ?? label ?? t('More actions')}>
+        <Icon name={icon} size={small ? 14 : 16} />
+        {label && <span>{label}</span>}
+        {label && <Icon name="caret" size={12} />}
+      </summary>
+      <div class={`menu-pop ${align}`}>
+        {items.map((it, i) => (
+          <button
+            type="button"
+            key={`${it.label}${i}`}
+            class={`${it.danger ? 'danger' : ''} ${it.sep ? 'sep' : ''} ${it.checked ? 'checked' : ''}`}
+            disabled={it.disabled}
+            onClick={() => {
+              if (ref.current) ref.current.open = false;
+              it.run();
+            }}
+          >
+            {it.checked !== undefined ? <Icon name={it.checked ? 'check' : 'none'} size={14} /> : it.icon && <Icon name={it.icon} size={14} />}
+            <span>{it.label}</span>
+          </button>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+/** A collapsed section with a chevron summary ("Options", "Advanced", "Diagnostics"). */
+export function Disclosure({ title, children, open, onToggle, hint, class: cls }: { title: ComponentChildren; children: ComponentChildren; open?: boolean; onToggle?: (open: boolean) => void; hint?: ComponentChildren; class?: string }) {
+  return (
+    <details class={`disclosure ${cls ?? ''}`} open={open} onToggle={(e) => onToggle?.((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary>
+        <Icon name="chevron" size={14} />
+        <span class="disclosure-title">{title}</span>
+        {hint && <span class="muted disclosure-hint">{hint}</span>}
+      </summary>
+      <div class="disclosure-body">{children}</div>
+    </details>
+  );
+}
+
+/** A small rounded label: model, aspect, cost, "chain"… Clickable when `onClick` is given. */
+export function Chip({ children, icon, tone, title, onClick }: { children: ComponentChildren; icon?: string; tone?: 'warn' | 'accent' | 'ok' | 'bad'; title?: string; onClick?: () => void }) {
+  const cls = `chip ${tone ?? ''}`;
+  const inner = (
+    <>
+      {icon && <Icon name={icon} size={12} />}
+      <span>{children}</span>
+    </>
+  );
+  return onClick ? (
+    <button type="button" class={cls} title={title} onClick={onClick}>
+      {inner}
+    </button>
+  ) : (
+    <span class={cls} title={title}>
+      {inner}
+    </span>
+  );
 }
 
 // ---------- images from IndexedDB ----------

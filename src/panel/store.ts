@@ -3,6 +3,7 @@ import type { AppSettings, Character, LicenseState, LogLine, Queue, RunState, Sc
 import { DEFAULT_APP, IDLE_RUN, activeQueue, get, getQueue, saveQueue, set, watch, watchQueue } from '../shared/storage';
 import { licenseStatus, trialDaysLeft } from '../shared/license';
 import { dayKey } from '../shared/util';
+import { send } from '../shared/messages';
 
 export const settings = signal<AppSettings>(DEFAULT_APP);
 export const queue = signal<Queue | null>(null);
@@ -14,15 +15,68 @@ export const characters = signal<Character[]>([]);
 export const logs = signal<LogLine[]>([]);
 export const schedule = signal<Schedule | null>(null);
 export const ready = signal(false);
+/** Set when init() failed: the panel shows the message instead of spinning forever. */
+export const loadError = signal('');
 
-export type Tab = 'queue' | 'characters' | 'history' | 'settings';
+export type Tab = 'queue' | 'history' | 'settings';
 export const tab = signal<Tab>('queue');
 export const selected = signal<Set<string>>(new Set());
 
-/** Open Settings at the top, where the plan card compares Free and Pro. */
+/** Sheets that open on top of any tab: the plan (Free vs Pro, licence key) and the characters manager. */
+export type Sheet = 'plan' | 'characters' | null;
+export const sheet = signal<Sheet>(null);
+
+/** Open the plan sheet, which compares Free and Pro and takes a licence key. */
 export function showPlans() {
+  sheet.value = 'plan';
+}
+
+/** Open Settings with the Advanced section unfolded (e.g. from "Schedule" in the run menu). */
+export const settingsSection = signal<'basics' | 'advanced' | null>(null);
+export function showSettings(section: 'basics' | 'advanced' = 'basics') {
+  settingsSection.value = section;
   tab.value = 'settings';
-  requestAnimationFrame(() => window.scrollTo({ top: 0 }));
+}
+
+// ---------- Flow status ----------
+
+/** What the open Flow tabs look like: none, a tab without a project, or a project page. */
+export type FlowStatus = { state: 'none' | 'tab' | 'project'; tabId?: number };
+/** null until the first poll answers. */
+export const flowStatus = signal<FlowStatus | null>(null);
+
+const FLOW_POLL_MS = 5000;
+let flowTimer: ReturnType<typeof setInterval> | undefined;
+
+async function pollFlow() {
+  const tabs = await send<{ id: number; url: string }[]>({ type: 'flow:tabs' }).catch(() => null);
+  if (!tabs) return;
+  const project = tabs.find((x) => /\/project\//.test(x.url));
+  const next: FlowStatus = project ? { state: 'project', tabId: project.id } : tabs.length ? { state: 'tab', tabId: tabs[0].id } : { state: 'none' };
+  const cur = flowStatus.value;
+  if (!cur || cur.state !== next.state || cur.tabId !== next.tabId) flowStatus.value = next;
+}
+
+/** Poll the Flow tabs every few seconds while the panel is visible; stop while it is hidden. */
+function watchFlow() {
+  const start = () => {
+    if (flowTimer) return;
+    void pollFlow();
+    flowTimer = setInterval(() => void pollFlow(), FLOW_POLL_MS);
+  };
+  const stop = () => {
+    clearInterval(flowTimer);
+    flowTimer = undefined;
+  };
+  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  window.addEventListener('focus', () => void pollFlow());
+  if (!document.hidden) start();
+}
+
+/** Open Flow (or focus the existing tab) and re-check right after. */
+export async function openFlow() {
+  await send({ type: 'flow:open' }).catch(() => null);
+  setTimeout(() => void pollFlow(), 800);
 }
 
 export const plan = computed(() => licenseStatus(license.value));
@@ -37,7 +91,7 @@ function bindQueue(q: Queue) {
   queue.value = q;
   unwatchQueue?.();
   unwatchQueue = watchQueue(q.id, (nq) => {
-    if (nq && nq.updatedAt !== queue.value?.updatedAt) queue.value = nq;
+    if (nq && nq.updatedAt > (queue.value?.updatedAt ?? 0)) queue.value = nq; // ignore echoes of our own debounced saves
   });
 }
 
@@ -63,6 +117,7 @@ export async function init() {
   watch('characters', (v) => (characters.value = v));
   watch('logs', (v) => (logs.value = v));
   watch('schedule', (v) => (schedule.value = v));
+  watchFlow();
   ready.value = true;
 }
 
