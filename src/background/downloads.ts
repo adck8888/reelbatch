@@ -34,9 +34,25 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
   if (flowQueue.length && isFlowDownload(item)) {
     const next = flowQueue.shift()!;
     clearTimeout(next.timer);
+    claimed.add(item.id);
     suggest({ filename: `${next.base}.${extOf(item)}`, conflictAction: 'uniquify' });
     next.resolve(item.id);
   }
+});
+
+/** Downloads already matched to a slot by onDeterminingFilename. */
+const claimed = new Set<number>();
+
+// onDeterminingFilename does not fire when something else decides the path (a download-manager
+// extension, a browser under automation): the file then keeps Flow's name, but the run still gets it.
+chrome.downloads.onCreated.addListener((item) => {
+  if (!isFlowDownload(item)) return;
+  setTimeout(() => {
+    if (claimed.delete(item.id) || !flowQueue.length) return;
+    const next = flowQueue.shift()!;
+    clearTimeout(next.timer);
+    next.resolve(item.id);
+  }, 3000);
 });
 
 export interface Saved {

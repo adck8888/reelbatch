@@ -1,5 +1,5 @@
 {
-  "version": "2026.10.02-2",
+  "version": "2026.10.03-1",
   "minExtension": "1.0.0",
   "selectors": {
     "editor": "flow-rich-text-editor .ProseMirror, .prosemirror-editor .ProseMirror",
@@ -59,7 +59,7 @@
   },
   "rpc": {
     "imageGenerate": ["ogiZ0b"],
-    "videoGenerate": [],
+    "videoGenerate": ["YhhmEf"],
     "ignore": ["WuwhI", "nzlxg"]
   },
   "mediaUrl": "https://flow-content\\.google/(image|video)/([0-9a-f-]{36})[^\"\\\\\\s]*",

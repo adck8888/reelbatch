@@ -545,6 +545,7 @@ interface Out {
   url?: string;
   blob?: Blob;
   mediaId?: string;
+  poster?: string;
 }
 
 type Action = 'retry' | 'fail' | 'pause' | 'cooldown' | 'requeue';
@@ -640,7 +641,7 @@ async function runStep(c: Ctl, row: Row, rr: RowRun, step: Step, tabId: number, 
           await pause(msg);
           notify('Run paused', msg);
         }
-        return partial.map((r) => ({ kind: r.kind, url: r.url, mediaId: r.mediaId }));
+        return partial.map((r) => ({ kind: r.kind, url: r.url, mediaId: r.mediaId, poster: r.poster }));
       }
       await log('warn', `Row ${numberOf(c, row)} attempt ${attempt + 1}: ${msg}`);
       switch (action) {
@@ -778,7 +779,7 @@ async function generate(c: Ctl, rr: RowRun, step: Step, tabId: number, sharing: 
       });
       rr.cost = (rr.cost ?? 0) + reserved;
       if (r.partial) rr.error = `Flow returned ${r.results.length} of ${s.count}`;
-      return r.results.map((x) => ({ kind: x.kind, url: x.url, mediaId: x.mediaId }));
+      return r.results.map((x) => ({ kind: x.kind, url: x.url, mediaId: x.mediaId, poster: x.poster }));
     } catch (e) {
       // credits count once Flow accepted the prompt and something may have rendered (or still will);
       // a Generate press that could not be confirmed is treated as accepted
@@ -902,8 +903,10 @@ async function handleOutputs(c: Ctl, row: Row, rr: RowRun, step: Step, outs: Out
     if (o.blob && !o.url && o.blob.size <= 40 * 1024 * 1024) assetId = await putAsset(o.blob, `result-${n}`).catch(() => undefined);
 
     let thumbId: string | undefined;
-    if (blob) {
-      const src = o.kind === 'video' ? await videoFrame(blob, 'first') : blob;
+    // a video found on the page has no file to read a frame from: use the still Flow shows on its tile
+    const poster = !blob && o.poster ? await fetchBlob(o.poster, c.abort.signal).catch(() => undefined) : undefined;
+    if (blob || poster) {
+      const src = poster ?? (o.kind === 'video' ? await videoFrame(blob!, 'first') : blob);
       const thumb = src ? await makeThumb(src) : null;
       if (thumb) thumbId = await putAsset(thumb, 'thumb');
     }

@@ -131,7 +131,7 @@ function Tile({ it, on, onToggle, showN }: { it: HistoryItem; on: boolean; onTog
   return (
     <figure class={`tile ${on ? 'on' : ''}`} title={it.prompt}>
       <div class="tile-media" onClick={open}>
-        <Thumb id={it.thumbId} size={120} />
+        <Thumb id={it.thumbId} size={120} icon={it.kind === 'video' ? 'video' : 'image'} />
         {it.kind === 'video' && <span class="kind"><Icon name="video" size={12} /></span>}
         {showN && <span class="num">{it.n}</span>}
       </div>

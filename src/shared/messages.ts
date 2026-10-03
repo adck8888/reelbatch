@@ -93,6 +93,8 @@ export interface FlowResult {
   mediaId: string;
   url: string;
   kind: MediaKind;
+  /** Still image Flow shows on a finished video tile, used for the gallery thumbnail. */
+  poster?: string;
 }
 
 export type WatchOutcome =

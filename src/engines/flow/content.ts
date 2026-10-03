@@ -575,7 +575,7 @@ async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchO
 
   const fresh = (): FlowResult[] => {
     const byId = new Map<string, FlowResult>();
-    const take = (m: FlowResult) => byId.set(m.mediaId, { mediaId: m.mediaId, url: m.url, kind: m.kind });
+    const take = (m: FlowResult) => byId.set(m.mediaId, { mediaId: m.mediaId, url: m.url, kind: m.kind, poster: m.poster });
     for (const m of seen.values()) {
       if (known.has(m.mediaId) || claimed.has(m.mediaId) || m.t < c.since - 2000) continue;
       // the response to our own generate request, or a non-generate response (status poll) naming our prompt
@@ -630,7 +630,8 @@ async function watch(c: Extract<FlowCommand, { type: 'watch' }>): Promise<WatchO
     if (known.has(mediaId)) return null;
     const vsrc = video?.currentSrc || video?.src || '';
     const url = c.kind === 'video' ? (vsrc.startsWith('http') ? vsrc : '') : img?.src.startsWith('http') ? img.src : '';
-    return { mediaId, url, kind: c.kind };
+    const poster = c.kind === 'video' && img?.src.startsWith('http') ? img.src : undefined;
+    return { mediaId, url, kind: c.kind, poster };
   };
   const done = (o: WatchOutcome): WatchOutcome => {
     for (const r of o.results) claimed.add(r.mediaId);
