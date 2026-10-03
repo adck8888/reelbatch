@@ -33,6 +33,19 @@ export async function flowTabs() {
   return tabs.filter((t) => t.id !== undefined);
 }
 
+const isProject = (t: chrome.tabs.Tab) => /^https:\/\/flow\.google\.com\/project\//.test(t.url ?? '');
+
+/**
+ * The Flow tab a run should use: a tab with a project open wins over Flow's home or about page;
+ * among those, the tab in front of the user, then the one used last.
+ */
+export async function bestFlowTab(): Promise<chrome.tabs.Tab | undefined> {
+  const tabs = await flowTabs();
+  const [front] = await chrome.tabs.query({ active: true, lastFocusedWindow: true, url: 'https://flow.google.com/*' });
+  const rank = (t: chrome.tabs.Tab) => (isProject(t) ? 4 : 0) + (t.id === front?.id ? 2 : 0) + (t.active ? 1 : 0);
+  return [...tabs].sort((a, b) => rank(b) - rank(a) || (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))[0];
+}
+
 export async function openFlowTab(active = true) {
   const tab = await chrome.tabs.create({ url: FLOW_URL, active });
   return tab.id!;
@@ -78,7 +91,7 @@ export async function waitForTabLoad(tabId: number, timeoutMs = 45_000) {
 }
 
 export async function health(tabId?: number): Promise<HealthReport> {
-  const id = tabId ?? (await flowTabs())[0]?.id;
+  const id = tabId ?? (await bestFlowTab())?.id;
   if (id === undefined) return { ok: false, items: [{ key: 'tab', ok: false, detail: 'No Flow tab is open' }] };
   try {
     await ensureContent(id);

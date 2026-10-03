@@ -7,7 +7,7 @@ import { IDLE_RUN, get, getQueue, log, saveQueue, set, update } from '../shared/
 import { addHistory, deleteAsset, listHistory, makeThumb, putAsset, resolveRef } from '../shared/idb';
 import { buildPath, renderName } from '../shared/template';
 import { dayKey, errText, isAbort, rand, sleep, uid } from '../shared/util';
-import { FlowError, ensureContent, flowMenuDownload, flowTabs, health, openFlowTab, releaseTabs, runFlowJob, serialMenuDownload, waitForTabLoad } from './flow';
+import { FlowError, ensureContent, bestFlowTab, flowMenuDownload, flowTabs, health, openFlowTab, releaseTabs, runFlowJob, serialMenuDownload, waitForTabLoad } from './flow';
 import { ApiError, type ApiOutput } from '../engines/api/types';
 import { runGemini } from '../engines/api/gemini';
 import { runReplicate } from '../engines/api/replicate';
@@ -265,8 +265,7 @@ async function pickTabs(settings: AppSettings, pro: boolean): Promise<number[]> 
   let tabs = settings.run.tabs.filter((id) => open.includes(id));
   if (!pro) tabs = tabs.slice(0, 1);
   if (!tabs.length) {
-    const [active] = await chrome.tabs.query({ active: true, lastFocusedWindow: true, url: 'https://flow.google.com/*' });
-    tabs = [active?.id ?? open[0] ?? (await openFlowTab(true))];
+    tabs = [(await bestFlowTab())?.id ?? (await openFlowTab(true))];
   }
   for (const id of tabs) {
     await waitForTabLoad(id);

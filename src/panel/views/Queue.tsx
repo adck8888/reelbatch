@@ -814,6 +814,42 @@ function RunBar({ selecting }: { selecting: boolean }) {
   const doneHere = (r.ids ?? []).filter((id) => inQueue.has(id) && r.rows[id]?.status === 'done').length;
   const failedHere = (r.ids ?? []).filter((id) => inQueue.has(id) && r.rows[id]?.status === 'failed').length;
 
+  const summaryEl = (
+            <div class="summary">
+              <div class="row-wrap nowrap">
+                <span class="summary-text">
+                  <Icon name={failed ? 'alert' : 'check'} size={14} /> <b>{t('Done {n}/{max}', { n: done, max: total })}</b>
+                  {failed > 0 && <span class="bad"> · {t('{n} failed', { n: failed })}</span>}
+                </span>
+                <span class="grow" />
+                <Button small variant="ghost" icon="x" aria-label={t('Close')} onClick={() => setClosedSummary(r.runId)} />
+              </div>
+              <div class="row-wrap">
+                <Button small variant="ghost" icon="folder" onClick={() => openFolder(rows)}>
+                  {t('Open folder')}
+                </Button>
+                <Button small variant="ghost" icon="download" disabled={!pro.value} title={pro.value ? undefined : t('ZIP export is a Pro feature')} onClick={() => call({ type: 'export:zip', runId: r.runId }, t('ZIP saved to Downloads'))}>
+                  {t('Download ZIP')}
+                </Button>
+                {done > 0 && (
+                  <Button small variant="ghost" icon="grid" onClick={() => (tab.value = 'history')}>
+                    {t('Show results')}
+                  </Button>
+                )}
+                {doneHere > 0 && (
+                  <Button small variant="ghost" icon="check" title={t('Results stay in the Results tab')} onClick={() => editQueue((x) => void (x.rows = x.rows.filter((row) => r.rows[row.id]?.status !== 'done')))}>
+                    {t('Remove done')}
+                  </Button>
+                )}
+                {failedHere > 0 && (
+                  <Button small variant="ghost" icon="refresh" onClick={() => start({ kind: 'failed' })}>
+                    {t('Retry {n} failed', { n: failedHere })}
+                  </Button>
+                )}
+              </div>
+            </div>
+  );
+
   return (
     <div class="runbar" ref={barRef}>
       {active && mine ? (
@@ -870,6 +906,9 @@ function RunBar({ selecting }: { selecting: boolean }) {
             {t('Show it')}
           </Button>
         </div>
+      ) : q.rows.length === 0 && showSummary ? (
+        // finished rows were taken out of the queue: the summary still says how the run went
+        summaryEl
       ) : q.rows.length === 0 ? (
         <div class="run-empty">
           <Icon name="play" size={14} />
@@ -877,41 +916,7 @@ function RunBar({ selecting }: { selecting: boolean }) {
         </div>
       ) : (
         <>
-          {showSummary && (
-            <div class="summary">
-              <div class="row-wrap nowrap">
-                <span class="summary-text">
-                  <Icon name={failed ? 'alert' : 'check'} size={14} /> <b>{t('Done {n}/{max}', { n: done, max: total })}</b>
-                  {failed > 0 && <span class="bad"> · {t('{n} failed', { n: failed })}</span>}
-                </span>
-                <span class="grow" />
-                <Button small variant="ghost" icon="x" aria-label={t('Close')} onClick={() => setClosedSummary(r.runId)} />
-              </div>
-              <div class="row-wrap">
-                <Button small variant="ghost" icon="folder" onClick={() => openFolder(rows)}>
-                  {t('Open folder')}
-                </Button>
-                <Button small variant="ghost" icon="download" disabled={!pro.value} title={pro.value ? undefined : t('ZIP export is a Pro feature')} onClick={() => call({ type: 'export:zip', runId: r.runId }, t('ZIP saved to Downloads'))}>
-                  {t('Download ZIP')}
-                </Button>
-                {done > 0 && (
-                  <Button small variant="ghost" icon="grid" onClick={() => (tab.value = 'history')}>
-                    {t('Show results')}
-                  </Button>
-                )}
-                {doneHere > 0 && (
-                  <Button small variant="ghost" icon="check" title={t('Results stay in the Results tab')} onClick={() => editQueue((x) => void (x.rows = x.rows.filter((row) => r.rows[row.id]?.status !== 'done')))}>
-                    {t('Remove done')}
-                  </Button>
-                )}
-                {failedHere > 0 && (
-                  <Button small variant="ghost" icon="refresh" onClick={() => start({ kind: 'failed' })}>
-                    {t('Retry {n} failed', { n: failedHere })}
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
+          {showSummary && summaryEl}
           {blocks.slice(0, 2).map((b, i) => (
             <div key={i} class={`preflight ${b.tone ?? ''}`} role="alert">
               <Icon name={b.tone === 'bad' ? 'alert' : 'info'} size={15} />

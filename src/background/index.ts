@@ -4,7 +4,7 @@ import { get, getQueue, log, set } from '../shared/storage';
 import { isPro } from '../shared/license';
 import { errText } from '../shared/util';
 import { flowConfig } from './config';
-import { FLOW_URL, flowTabs, health, openFlowTab } from './flow';
+import { FLOW_URL, bestFlowTab, flowTabs, health, openFlowTab } from './flow';
 import { detachAll } from './debugger';
 import * as runner from './runner';
 import * as license from './license';
@@ -114,7 +114,7 @@ async function handle(m: PanelRequest | { type: 'flow:config' }): Promise<unknow
     case 'flow:tabs':
       return (await flowTabs()).map((t) => ({ id: t.id, title: t.title ?? 'Flow', url: t.url ?? '', active: t.active }));
     case 'flow:open': {
-      const [existing] = await flowTabs();
+      const existing = await bestFlowTab();
       if (existing?.id) {
         await chrome.tabs.update(existing.id, { active: true });
         if (existing.windowId) await chrome.windows.update(existing.windowId, { focused: true });

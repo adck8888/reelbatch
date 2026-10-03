@@ -341,7 +341,13 @@ async function prepare(s: GenSettings, target: string): Promise<PrepareOutcome> 
   const trig = $(cfg.selectors.settingsTrigger);
   if (!visible(trig)) return { ok: false, error: 'Flow settings button not found — open a Flow project' };
   trig.click();
-  const pane = await waitFor(settingsPane, 3000);
+  let pane = await waitFor(settingsPane, 1500);
+  if (!pane) {
+    // after a generation Flow's first click on the button only shows an "Enter a prompt" hint
+    await closeOverlays();
+    $<HTMLElement>(cfg.selectors.settingsTrigger)?.click();
+    pane = await waitFor(settingsPane, 3000);
+  }
   if (!pane) return { ok: false, error: 'Flow settings did not open' };
   try {
     const I = cfg.icons;
