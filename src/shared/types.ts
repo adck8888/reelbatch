@@ -59,6 +59,8 @@ export interface ResultMedia {
   bytes?: number;
   /** Asset id of a cached copy (thumbnail or full file) used for chaining and the gallery. */
   assetId?: string;
+  /** Asset id of the small preview; Flow's own links expire after a few hours. */
+  thumbId?: string;
 }
 
 export interface RowRun {

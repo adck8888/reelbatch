@@ -1,6 +1,6 @@
 # Reelbatch Privacy Policy
 
-_Last updated: 2 October 2026_
+_Last updated: 3 October 2026_
 
 Reelbatch is a Chrome extension that runs batches of image and video prompts in Google Flow, or through AI providers using your own API keys. This policy explains what data the extension handles and where that data goes.
 
@@ -15,17 +15,17 @@ Reelbatch is a Chrome extension that runs batches of image and video prompts in 
 | Data | Purpose | Where |
 | --- | --- | --- |
 | Prompts, queues, characters, reference images | Running your batches | `chrome.storage.local` and IndexedDB in your browser |
-| Generation history and thumbnails | The History tab and re-runs | IndexedDB in your browser |
+| Generation history and thumbnails | The Results tab and re-runs | IndexedDB in your browser |
 | Gemini / Replicate API keys (optional) | Calling those APIs on your behalf | `chrome.storage.local` in your browser |
 | Licence key and its status | Unlocking Pro | `chrome.storage.local` in your browser |
 | Settings and daily usage counter | Preferences and the free daily limit | `chrome.storage.local` in your browser |
 | Trial start date | Keeps the 7-day trial from restarting after a reinstall | `chrome.storage.sync`, synced to your Chrome profile by Google |
 
-You can delete all of it at any time. Use **Settings → Diagnostics**, clear History, or remove the extension.
+You can delete all of it at any time. Use **Settings → Diagnostics**, clear Results, or remove the extension.
 
 ## Services Reelbatch talks to
 
-- **Google Flow (flow.google.com, flow-content.google).** Reelbatch fills in and submits prompts in your open Flow tab, then downloads the results you generate. This happens under your own Google account, as if you were doing it by hand.
+- **Google Flow (flow.google.com, flow-content.google).** Reelbatch fills in and submits prompts in your open Flow tab, then downloads the results you generate. Some finished files are served by Google from googleusercontent.com or storage.googleapis.com. This happens under your own Google account, as if you were doing it by hand.
 - **Google Gemini API (generativelanguage.googleapis.com).** Used only if you add your own Gemini key. Your prompts and reference images go to Google to generate media. Google's terms and privacy policy apply.
 - **Replicate (api.replicate.com, replicate.delivery).** Used only if you add your own Replicate key. Your prompts and reference images go to Replicate. Replicate's terms and privacy policy apply.
 - **Google Sheets (docs.google.com).** Used only when you import a sheet, and only after you grant that optional permission. Reelbatch downloads the sheet's CSV export.

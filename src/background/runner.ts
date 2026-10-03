@@ -910,6 +910,7 @@ async function handleOutputs(c: Ctl, row: Row, rr: RowRun, step: Step, outs: Out
       const thumb = src ? await makeThumb(src) : null;
       if (thumb) thumbId = await putAsset(thumb, 'thumb');
     }
+    res.thumbId = thumbId;
     await addHistory({
       runId: state.runId!,
       queueName: c.queue.name,

@@ -18,7 +18,9 @@ Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of pro
 • Queue hundreds of prompts (no daily limit on Pro): paste them, or import from TXT, CSV, DOCX, Excel, JSON or Google Sheets
 • Every model in your Flow plan: Nano Banana 2, Nano Banana Pro, Veo 3.1 (Lite, Fast, Quality) and Omni 1.1 Flash
 • Text-to-video, frames-to-video (start and end frame) and ingredients (reference images)
+• Images and videos in one queue: turn any row into a video with one click
 • Per-row overrides for model, aspect ratio, outputs, duration and resolution
+• The credit cost of the whole run is shown on the Run button before you press it
 • Auto-download with templates such as {n}_{prompt}_{model}, in folders per queue or per run
 • Upscaled downloads (2K/4K images, 1080p video) when your Flow plan offers them
 
@@ -43,12 +45,14 @@ Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of pro
 • Adjustable pause between prompts and several Flow tabs in parallel
 • Keeps the computer awake while a batch runs
 • Scheduler: start a queue overnight
+• Stop at any time, then "Run not finished" continues with the prompts that did not run
+• Finished prompts leave the queue automatically; their files stay in Results
 • Resume after a browser restart
 
 ### And more
 • AI prompt helper: idea → prompts, script → scenes, variations, improve, translate
-• History with storyboard view, search, re-run and ZIP export
-• CSV sidecar with prompt, model, seed and file name for every output
+• Results gallery with search, re-run and ZIP export; vertical and wide results keep their shape
+• run.csv log with the prompt, model, status, file, link and cost of every output
 • 8 languages: English, Русский, Español, Português, Tiếng Việt, हिन्दी, Bahasa Indonesia, Türkçe
 
 ### Free and Pro
@@ -95,5 +99,6 @@ Batch-generate images and videos from a list of prompts: in Google Flow through 
 
 ## Assets to prepare
 - Icon 128×128: public/icons/128.png
-- Screenshots 1280×800 (up to 5): queue with a running batch over Flow; import dialog with Sheets mapping; characters; history storyboard; settings and budget guard
-- Small promo tile 440×280
+- Screenshots 1280×800, in this order: store/assets/screenshot-1.png (queue with the cost on Run), screenshot-2.png (run in progress), screenshot-3.png (Results gallery), screenshot-4.png (per-row settings), screenshot-5.png (safety settings). Made from a real test run on 2026-10-03.
+- Small promo tile 440×280: store/assets/promo-small-440x280.png
+- Marquee 1400×560: store/assets/promo-marquee-1400x560.png

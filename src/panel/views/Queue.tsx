@@ -462,7 +462,7 @@ function RowItem(p: {
           {!row.enabled && <Chip>{t('Off')}</Chip>}
           {results.map((res, i) => (
             <a key={i} class="result-thumb" href={res.url || undefined} target="_blank" rel="noreferrer" title={res.file ?? res.url}>
-              <Thumb id={res.assetId ?? res.url} size={28} icon={res.kind === 'video' ? 'video' : 'image'} />
+              <Thumb id={res.thumbId ?? res.assetId ?? res.url} size={28} icon={res.kind === 'video' ? 'video' : 'image'} />
             </a>
           ))}
           {rr?.error && (
