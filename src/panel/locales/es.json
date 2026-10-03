@@ -269,6 +269,7 @@
   "imported column names": "nombres de columnas importadas",
   "{n} credits": "{n} créditos",
   "{n} days left": "Quedan {n} días",
+  "{n} not started": "{n} sin iniciar",
   "{n} failed": "{n} fallidos",
   "{n} files": "{n} archivos",
   "{n} of {max} prompts used today": "{n} de {max} prompts usados hoy",

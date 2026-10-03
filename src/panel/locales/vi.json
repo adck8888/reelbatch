@@ -269,6 +269,7 @@
   "imported column names": "tên cột đã nhập",
   "{n} credits": "{n} credit",
   "{n} days left": "còn {n} ngày",
+  "{n} not started": "{n} chưa chạy",
   "{n} failed": "{n} lỗi",
   "{n} files": "{n} tệp",
   "{n} of {max} prompts used today": "Đã dùng {n}/{max} prompt hôm nay",

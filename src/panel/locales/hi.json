@@ -269,6 +269,7 @@
   "imported column names": "इम्पोर्ट किए गए कॉलम नाम",
   "{n} credits": "{n} क्रेडिट",
   "{n} days left": "{n} दिन बाकी",
+  "{n} not started": "{n} शुरू नहीं हुए",
   "{n} failed": "{n} फ़ेल",
   "{n} files": "{n} फ़ाइलें",
   "{n} of {max} prompts used today": "आज {max} में से {n} prompts इस्तेमाल हुए",

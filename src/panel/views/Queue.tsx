@@ -739,6 +739,7 @@ function RunBar({ selecting }: { selecting: boolean }) {
   const finished = rows.filter((x) => ['done', 'failed', 'skipped'].includes(x.status)).length;
   const done = rows.filter((x) => x.status === 'done').length;
   const failed = rows.filter((x) => x.status === 'failed').length;
+  const skipped = rows.filter((x) => x.status === 'skipped').length;
   const elapsed = r.startedAt ? now - r.startedAt : 0;
   const eta = finished > 0 && total > finished ? (elapsed / finished) * (total - finished) : NaN;
   const current = q.rows.find((row) => BUSY.includes(r.rows[row.id]?.status));
@@ -820,6 +821,7 @@ function RunBar({ selecting }: { selecting: boolean }) {
                 <span class="summary-text">
                   <Icon name={failed ? 'alert' : 'check'} size={14} /> <b>{t('Done {n}/{max}', { n: done, max: total })}</b>
                   {failed > 0 && <span class="bad"> · {t('{n} failed', { n: failed })}</span>}
+                  {skipped > 0 && <span class="muted"> · {t('{n} not started', { n: skipped })}</span>}
                 </span>
                 <span class="grow" />
                 <Button small variant="ghost" icon="x" aria-label={t('Close')} onClick={() => setClosedSummary(r.runId)} />

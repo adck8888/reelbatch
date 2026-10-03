@@ -269,6 +269,7 @@
   "imported column names": "içe aktarılan sütun adları",
   "{n} credits": "{n} kredi",
   "{n} days left": "{n} gün kaldı",
+  "{n} not started": "{n} başlamadı",
   "{n} failed": "{n} başarısız",
   "{n} files": "{n} dosya",
   "{n} of {max} prompts used today": "Bugün {max} prompttan {n} tanesi kullanıldı",

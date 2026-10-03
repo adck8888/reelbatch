@@ -446,8 +446,10 @@ main > * { flex-shrink: 0; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 .tile { margin: 0; position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
 .tile.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.tile-media { position: relative; cursor: pointer; aspect-ratio: 1; }
-.tile-media .thumb { width: 100% !important; height: 100% !important; border: 0; border-radius: 0; }
+.tile-media { position: relative; cursor: pointer; aspect-ratio: 1; overflow: hidden; }
+.tile-media .thumb { position: absolute; inset: 0; width: 100% !important; height: 100% !important; border: 0; border-radius: 0; }
+/* whole frame, so 9:16 and 16:9 results keep their shape and the grid rows stay even */
+.tile-media .thumb img { object-fit: contain; }
 .tile .kind, .tile .num { position: absolute; bottom: 4px; left: 4px; background: rgba(0, 0, 0, 0.6); color: #fff; border-radius: 4px; padding: 1px 4px; font-size: 11px; display: inline-flex; }
 .tile .num { left: auto; right: 4px; }
 .tile-check { position: absolute; top: 6px; left: 6px; }

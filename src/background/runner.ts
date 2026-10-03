@@ -87,7 +87,7 @@ function rowsInScope(q: Queue, scope: RunScope, prev: RunState): Row[] {
     case 'failed':
       return enabled.filter((r) => prevRows[r.id]?.status === 'failed');
     case 'pending':
-      return enabled.filter((r) => !['done', 'skipped'].includes(prevRows[r.id]?.status ?? ''));
+      return enabled.filter((r) => prevRows[r.id]?.status !== 'done');
     case 'selected': {
       const ids = new Set(scope.ids);
       return q.rows.filter((r) => ids.has(r.id) && r.prompt.trim());
@@ -404,7 +404,11 @@ async function worker(c: Ctl, index: number, workers: number) {
     } catch (e) {
       if (isAbort(e)) {
         const rr = rowRun(row.id);
-        if (!TERMINAL.has(rr.status) && rr.status !== 'queued') {
+        if (rr.status === 'waiting' && !rr.results.length) {
+          // stopped before anything was sent to Flow: nothing failed, the row just did not run
+          rr.status = 'skipped';
+          rr.error = undefined;
+        } else if (!TERMINAL.has(rr.status) && rr.status !== 'queued') {
           rr.error =
             rr.status === 'rendering' || rr.status === 'downloading'
               ? 'Stopped while Flow was generating — the result may still appear in your Flow project'

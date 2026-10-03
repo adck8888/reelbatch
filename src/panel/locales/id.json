@@ -269,6 +269,7 @@
   "imported column names": "nama kolom yang diimpor",
   "{n} credits": "{n} kredit",
   "{n} days left": "sisa {n} hari",
+  "{n} not started": "{n} belum dimulai",
   "{n} failed": "{n} gagal",
   "{n} files": "{n} file",
   "{n} of {max} prompts used today": "{n} dari {max} prompt terpakai hari ini",
