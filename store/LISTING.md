@@ -10,66 +10,57 @@ Run hundreds of image and video prompts in Google Flow or with your own Gemini/R
 
 ## Description
 
-Reelbatch turns Google Flow into a batch studio. Paste or import hundreds of prompts and press Run. Reelbatch submits them one by one, or several at once, and saves every image and video with the file names you choose.
+Reelbatch turns Google Flow into a batch studio. Paste or import a list of prompts and press Run. Reelbatch submits them one by one, or several at once, and saves every image and video with the file names you choose.
 
-**Built for people who generate at volume:** YouTube and TikTok channels, ad and UGC studios, storyboard artists, e-commerce teams and prompt testers.
+It is built for people who generate at volume: video channels, ad studios, storyboard artists, online shops and anyone testing many prompts.
 
 ### Bulk generation in Google Flow
-• Queue hundreds of prompts (no daily limit on Pro): paste them, or import from TXT, CSV, DOCX, Excel, JSON or Google Sheets
-• Every model in your Flow plan: Nano Banana 2, Nano Banana Pro, Veo 3.1 (Lite, Fast, Quality) and Omni 1.1 Flash
-• Text-to-video, frames-to-video (start and end frame) and ingredients (reference images)
+• Queue hundreds of prompts: paste them or import a text file or spreadsheet
+• Use any image or video model your Flow plan includes
+• Text-to-video, start and end frames, and reference images
 • Images and videos in one queue: turn any row into a video with one click
-• Per-row overrides for model, aspect ratio, outputs, duration and resolution
-• The credit cost of the whole run is shown on the Run button before you press it
-• Auto-download with templates such as {n}_{prompt}_{model}, in folders per queue or per run
-• Upscaled downloads (2K/4K images, 1080p video) when your Flow plan offers them
+• Change the model, aspect ratio or length for a single row
+• See the credit cost of the whole run on the Run button before you press it
+• Automatic downloads with your own file-name template and folders
 
 ### Your own API keys (optional)
-• Gemini API: Veo 3.1 and Nano Banana via your Google AI key
-• Replicate: Kling 3.0, Seedance 2.0, Hailuo 2.3, Veo 3.1, FLUX.2 [pro], GPT Image 2, Ideogram 3 Turbo and Nano Banana Pro
-• You pay the provider directly at their prices. No markup, no middle server.
+Prefer to pay per use? Connect your own Google AI or Replicate key and generate without Flow. You pay the provider directly; there is no markup and no middle server.
 
 ### Animate photos in bulk (Pro)
-• Drop a folder of photos, write one motion prompt, get one video per photo, named after the source file
-• Each photo becomes the start frame (or a reference image) of its own clip
+Drop a folder of photos, write one motion prompt and get one video per photo, named after the source file.
 
 ### Consistency and storytelling
-• Characters: write @Mia in any prompt, and her reference images and description are attached automatically
+• Characters: mention @Mia in a prompt and her reference images are attached automatically
 • Chaining: each clip starts from the last frame of the previous one
-• Image→video pipeline: generate a still, then animate it with a motion prompt
-• Variations: "a {red|blue} car at {dawn|night}" expands into 4 prompts
+• Turn a generated still into a video with a motion prompt
+• Variations: "a {red|blue} car" expands into one prompt per option
 
 ### Safe, unattended runs
-• Credit budget guard: stops before spending more Flow credits or dollars than you allow
-• Smart retries, a cooldown when Flow reports unusual activity, and a pause when you run out of credits
-• Adjustable pause between prompts and several Flow tabs in parallel
-• Keeps the computer awake while a batch runs
-• Scheduler: start a queue overnight
-• Stop at any time, then "Run not finished" continues with the prompts that did not run
-• Finished prompts leave the queue automatically; their files stay in Results
-• Resume after a browser restart
+• A credit budget stops the run before it spends more than you allow
+• Smart retries, a cooldown when Flow asks you to slow down, and a pause when credits run out
+• Keeps the computer awake during a run, and a scheduler starts a queue overnight
+• Stop at any time and continue later with the prompts that did not run
 
 ### And more
-• AI prompt helper: idea → prompts, script → scenes, variations, improve, translate
-• Results gallery with search, re-run and ZIP export; vertical and wide results keep their shape
-• run.csv log with the prompt, model, status, file, link and cost of every output
-• 8 languages: English, Русский, Español, Português, Tiếng Việt, हिन्दी, Bahasa Indonesia, Türkçe
+• AI prompt helper: turn an idea or a script into a list of prompts
+• Results gallery with search, re-run and ZIP export
+• A CSV log of every output with its prompt, status and cost
+• Interface in 8 languages
 
 ### Free and Pro
-**Free:** Google Flow, 30 prompts a day, one at a time, auto-download, TXT/CSV/DOCX import.
-**Pro ($9/month or $69 once):** no daily limit, parallel runs and several tabs, API engines, animate photos in bulk, characters, chaining, image→video, upscaled downloads, scheduler, AI helper, Sheets/Excel/JSON import, ZIP export.
-A 7-day Pro trial is included and needs no card.
+Free: Google Flow, 30 prompts a day, one at a time, automatic downloads.
+Pro ($9/month or $69 once): no daily limit, parallel runs, your own API keys, photo animation, characters, chaining, the scheduler, the AI helper and ZIP export. A 7-day Pro trial is included and needs no card.
 
 ### FAQ
-**Why does Chrome show "Reelbatch started debugging this browser"?** Flow only reacts to real clicks and key presses. Reelbatch uses Chrome's debugger interface on the Flow tab, only while a batch runs, to press Generate for you. The bar disappears when the run ends. Closing it pauses the run.
-**Do I need a paid Flow plan?** No. Reelbatch uses the credits of whatever Flow plan you have. Pro unlocks features in Reelbatch, not Flow credits.
-**What if Flow changes its page?** Reelbatch reads a small public configuration file, so most layout changes are fixed within hours without a store update. Report problems at https://github.com/adck8888/reelbatch/issues
-**Will it spend my credits by surprise?** No. Set a credit budget and Reelbatch stops before it is reached. Each prompt is sent once; a failure after sending is never retried automatically.
+Why does Chrome show "Reelbatch started debugging this browser"? Flow only reacts to real clicks and key presses. Reelbatch uses Chrome's debugger interface on the Flow tab, only while a batch runs, to press Generate for you. The bar disappears when the run ends, and closing it pauses the run.
+Do I need a paid Flow plan? No. Reelbatch uses the credits of whatever Flow plan you have. Pro unlocks features in Reelbatch, not Flow credits.
+What if Flow changes its page? Reelbatch reads a small public configuration file, so most layout changes are fixed within hours without a store update. Report problems at https://github.com/adck8888/reelbatch/issues
+Will it spend my credits by surprise? No. Set a credit budget and Reelbatch stops before it is reached. Each prompt is sent once, and a failure after sending is never retried automatically.
 
 ### Privacy
 Reelbatch has no server. Your prompts, files and keys stay in your browser. Licence checks go to Lemon Squeezy, and the Flow layout file comes from GitHub. Privacy policy: https://github.com/adck8888/reelbatch/blob/main/PRIVACY.md
 
-Reelbatch is an independent tool and is not affiliated with or endorsed by Google, Replicate or any model provider. Google, Flow, Veo, Gemini and Nano Banana are trademarks of Google LLC; other names belong to their owners. You are responsible for following the terms of the services you use.
+Reelbatch is an independent tool and is not affiliated with or endorsed by Google or Replicate. Google and Flow are trademarks of Google LLC. You are responsible for following the terms of the services you use.
 
 ## Single purpose
 
