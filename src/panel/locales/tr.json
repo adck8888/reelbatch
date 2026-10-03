@@ -553,5 +553,7 @@
   "Make it an image": "Görsele çevir",
   "The text in the box above is not in the queue yet ({n} prompts).": "Kutudaki metin henüz kuyrukta değil ({n} istem).",
   "Add it": "Ekle",
-  "Results stay in the Results tab": "Sonuçlar Sonuçlar sekmesinde kalır"
+  "Results stay in the Results tab": "Sonuçlar Sonuçlar sekmesinde kalır",
+  "Show results": "Sonuçları göster",
+  "Remove finished prompts from the queue after a run (results stay in Results)": "Çalışmadan sonra biten istemleri kuyruktan kaldır (sonuçlar Sonuçlar'da kalır)"
 }

@@ -62,6 +62,7 @@ function BasicsCard() {
   return (
     <Card title={t('Basics')}>
       <Toggle checked={d.enabled} onChange={(v) => setDl((x) => void (x.enabled = v))} label={t('Save every result to Downloads automatically')} />
+      <Toggle checked={o.removeDone} onChange={(v) => setRun((x) => void (x.removeDone = v))} label={t('Remove finished prompts from the queue after a run (results stay in Results)')} />
       {d.enabled && (
         <>
           <div class="grid2">

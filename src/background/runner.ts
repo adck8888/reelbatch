@@ -3,7 +3,7 @@ import type { Estimate } from '../shared/messages';
 import { effectiveSettings, estimateCost, hasLiveCost, modelById, modelsFor } from '../shared/models';
 import { resolveMentions } from '../shared/characters';
 import { PRO, isPro } from '../shared/license';
-import { IDLE_RUN, get, getQueue, log, set, update } from '../shared/storage';
+import { IDLE_RUN, get, getQueue, log, saveQueue, set, update } from '../shared/storage';
 import { addHistory, deleteAsset, listHistory, makeThumb, putAsset, resolveRef } from '../shared/idb';
 import { buildPath, renderName } from '../shared/template';
 import { dayKey, errText, isAbort, rand, sleep, uid } from '../shared/util';
@@ -995,6 +995,17 @@ async function finish(c: Ctl) {
     const ctx = { n: 0, total: c.queue.rows.length, prompt: '', model: '', queue: c.queue.name, variant: 1, kind: 'log' };
     const folder = buildPath(dl.folder, `run_${renderName('{date}_{time}', ctx)}`, 'x', ctx).slice(0, -2);
     await downloadText(runCsv(c.queue, state), folder, 'text/csv').catch((e) => log('warn', `Run log not saved: ${errText(e)}`));
+  }
+
+  if (c.settings.run.removeDone && done) {
+    // finished rows leave the queue; their files stay in Results and Downloads
+    const q = await getQueue(c.queue.id);
+    const ids = new Set(state.ids ?? []);
+    if (q) {
+      const before = q.rows.length;
+      q.rows = q.rows.filter((r) => !(ids.has(r.id) && state.rows[r.id]?.status === 'done'));
+      if (q.rows.length !== before) await saveQueue(q).catch((e) => log('warn', `Finished rows not removed: ${errText(e)}`));
+    }
   }
 
   await releaseTabs(c.tabs).catch(() => {});

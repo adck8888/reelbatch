@@ -553,5 +553,7 @@
   "Make it an image": "Jadikan gambar",
   "The text in the box above is not in the queue yet ({n} prompts).": "Teks di kotak belum masuk antrean ({n} prompt).",
   "Add it": "Tambahkan",
-  "Results stay in the Results tab": "Hasil tetap ada di tab Hasil"
+  "Results stay in the Results tab": "Hasil tetap ada di tab Hasil",
+  "Show results": "Lihat hasil",
+  "Remove finished prompts from the queue after a run (results stay in Results)": "Hapus prompt yang selesai dari antrean setelah run (hasil tetap di Hasil)"
 }

@@ -108,6 +108,8 @@ export interface RunOptions {
   stopAfterFails: number;
   /** Flow tab ids to spread the run over; empty = the active Flow tab (opened if needed). */
   tabs: number[];
+  /** Take finished rows out of the queue when a run ends; their results stay in Results. */
+  removeDone: boolean;
   download: DownloadOptions;
 }
 

@@ -553,5 +553,7 @@
   "Make it an image": "Chuyển thành ảnh",
   "The text in the box above is not in the queue yet ({n} prompts).": "Văn bản trong ô chưa được thêm vào hàng đợi ({n} prompt).",
   "Add it": "Thêm",
-  "Results stay in the Results tab": "Kết quả vẫn nằm trong tab Kết quả"
+  "Results stay in the Results tab": "Kết quả vẫn nằm trong tab Kết quả",
+  "Show results": "Xem kết quả",
+  "Remove finished prompts from the queue after a run (results stay in Results)": "Xóa prompt đã xong khỏi hàng đợi sau mỗi lượt chạy (kết quả vẫn ở mục Kết quả)"
 }

@@ -553,5 +553,7 @@
   "Make it an image": "Сделать картинкой",
   "The text in the box above is not in the queue yet ({n} prompts).": "Текст в поле выше ещё не добавлен в очередь (промптов: {n}).",
   "Add it": "Добавить",
-  "Results stay in the Results tab": "Результаты останутся во вкладке «Результаты»"
+  "Results stay in the Results tab": "Результаты останутся во вкладке «Результаты»",
+  "Show results": "Открыть результаты",
+  "Remove finished prompts from the queue after a run (results stay in Results)": "Убирать готовые промпты из очереди после прогона (результаты остаются во вкладке «Результаты»)"
 }

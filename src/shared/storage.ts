@@ -32,6 +32,7 @@ export const DEFAULT_APP: AppSettings = {
     budgetUsd: 0,
     stopAfterFails: 5,
     tabs: [],
+    removeDone: true,
     download: {
       enabled: true,
       folder: 'Reelbatch/{queue}',

@@ -378,11 +378,11 @@ export function useAssetUrl(id?: string) {
   return url;
 }
 
-export function Thumb({ id, size = 40, onRemove, title }: { id?: string; size?: number; onRemove?: () => void; title?: string }) {
+export function Thumb({ id, size = 40, onRemove, title, icon = 'image' }: { id?: string; size?: number; onRemove?: () => void; title?: string; icon?: string }) {
   const url = useAssetUrl(id);
   return (
     <span class="thumb" style={{ width: `${size}px`, height: `${size}px` }} title={title}>
-      {url ? <img src={url} alt="" /> : <Icon name="image" size={Math.round(size / 2.5)} />}
+      {url ? <img src={url} alt="" /> : <Icon name={icon} size={Math.round(size / 2.5)} />}
       {onRemove && (
         <button type="button" class="thumb-x" onClick={(e) => (e.stopPropagation(), onRemove())} aria-label={t('Remove')}>
           ×

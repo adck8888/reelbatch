@@ -462,7 +462,7 @@ function RowItem(p: {
           {!row.enabled && <Chip>{t('Off')}</Chip>}
           {results.map((res, i) => (
             <a key={i} class="result-thumb" href={res.url || undefined} target="_blank" rel="noreferrer" title={res.file ?? res.url}>
-              <Thumb id={res.assetId ?? res.url} size={28} />
+              <Thumb id={res.assetId ?? res.url} size={28} icon={res.kind === 'video' ? 'video' : 'image'} />
             </a>
           ))}
           {rr?.error && (
@@ -808,7 +808,11 @@ function RunBar({ selecting }: { selecting: boolean }) {
     { label: rangeOn ? t('Run all rows') : t('Run a range of rows…'), icon: 'list', run: () => setRangeOn(!rangeOn) },
     { label: t('Schedule'), icon: 'clock', sep: true, run: () => showSettings('advanced') }
   ];
-  const showSummary = !active && mine && !!r.runId && total > 0 && closedSummary !== r.runId;
+  // a run saved by an older version has no ids: its counts can't be trusted, so no summary
+  const showSummary = !active && mine && !!r.runId && !!r.ids && total > 0 && closedSummary !== r.runId;
+  const inQueue = new Set(q.rows.map((x) => x.id));
+  const doneHere = (r.ids ?? []).filter((id) => inQueue.has(id) && r.rows[id]?.status === 'done').length;
+  const failedHere = (r.ids ?? []).filter((id) => inQueue.has(id) && r.rows[id]?.status === 'failed').length;
 
   return (
     <div class="runbar" ref={barRef}>
@@ -891,13 +895,18 @@ function RunBar({ selecting }: { selecting: boolean }) {
                   {t('Download ZIP')}
                 </Button>
                 {done > 0 && (
+                  <Button small variant="ghost" icon="grid" onClick={() => (tab.value = 'history')}>
+                    {t('Show results')}
+                  </Button>
+                )}
+                {doneHere > 0 && (
                   <Button small variant="ghost" icon="check" title={t('Results stay in the Results tab')} onClick={() => editQueue((x) => void (x.rows = x.rows.filter((row) => r.rows[row.id]?.status !== 'done')))}>
                     {t('Remove done')}
                   </Button>
                 )}
-                {failed > 0 && (
+                {failedHere > 0 && (
                   <Button small variant="ghost" icon="refresh" onClick={() => start({ kind: 'failed' })}>
-                    {t('Retry {n} failed', { n: failed })}
+                    {t('Retry {n} failed', { n: failedHere })}
                   </Button>
                 )}
               </div>

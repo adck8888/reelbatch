@@ -553,5 +553,7 @@
   "Make it an image": "Transformar em imagem",
   "The text in the box above is not in the queue yet ({n} prompts).": "O texto da caixa ainda não está na fila ({n} prompts).",
   "Add it": "Adicionar",
-  "Results stay in the Results tab": "Os resultados continuam na aba Resultados"
+  "Results stay in the Results tab": "Os resultados continuam na aba Resultados",
+  "Show results": "Ver resultados",
+  "Remove finished prompts from the queue after a run (results stay in Results)": "Remover da fila os prompts concluídos após cada execução (os resultados ficam em Resultados)"
 }
