@@ -8,6 +8,8 @@ Bulk image and video generation for **Google Flow** (Veo 3.1, Nano Banana, Omni)
 - Credit budget guard, retries, cooldowns, scheduler, several tabs in parallel
 - History with storyboard view and ZIP export
 
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/kifobjipkpmbmjnfodcoahbpomeebjhe)** · Free: 30 prompts a day · Pro: [$9/month](https://adcktools.lemonsqueezy.com/checkout/buy/52a55fe3-c97c-47d6-937d-e57a9755bdc4?enabled=2195723) or [$69 once](https://adcktools.lemonsqueezy.com/checkout/buy/632428be-3613-4f8c-b79b-14187472707f?enabled=2195724)
+
 [Privacy policy](PRIVACY.md) · [Report a problem](https://github.com/adck8888/reelbatch/issues/new)
 
 ## Remote selector config
